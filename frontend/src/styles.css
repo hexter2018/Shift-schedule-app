@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
-/* Design tokens — corporate navy/slate system. Primary (navy) is used
-   for chrome and primary actions ONLY — buttons, focus rings, active
-   nav, the sticky header. Red/green/orange are reserved exclusively for
-   status meaning (errors, success, OT/holiday flags) so they keep their
-   signal value instead of competing with brand color for attention,
-   which is the actual thing that makes an interface read as "generic
-   template" rather than "enterprise system a team relies on daily."
+/* Design tokens — a near-monochrome slate system in the Vercel / shadcn
+   idiom. The single "brand" color is a near-black slate (--color-primary)
+   used for chrome and primary actions ONLY — buttons, focus rings, the
+   sticky header accent. Everything else in chrome stays neutral slate so
+   the interface reads as calm and intentional rather than decorated.
+   Red/green/orange are reserved exclusively for status meaning (errors,
+   success, OT/holiday flags) so they keep their signal value instead of
+   competing with chrome for attention — that is the actual thing that
+   makes an interface read as "an enterprise system a team relies on
+   daily" rather than "generic template".
    Sarabun stays the body/data typeface (Thai legibility, and it's the
    same font the Excel/print export uses — on-screen and the signed
    document should look like the same document). Inter handles UI chrome. */
@@ -14,26 +17,30 @@
   --font-sans: "Inter", -apple-system, "Segoe UI", sans-serif;
   --font-thai: "TH Sarabun New", "Sarabun", "Noto Sans Thai", -apple-system, "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
 
-  --color-ink: #0f172a;
-  --color-ink-soft: #475569;
-  --color-ink-faint: #94a3b8;
-  --color-canvas: #f8fafc;
+  /* Slate neutrals */
+  --color-ink: #0f172a;        /* slate-900 — primary text */
+  --color-ink-soft: #475569;   /* slate-600 — secondary text */
+  --color-ink-faint: #94a3b8;  /* slate-400 — tertiary / placeholder */
+  --color-canvas: #f8fafc;     /* slate-50  — app background */
   --color-surface: #ffffff;
-  --color-line: #e2e8f0;
+  --color-line: #e2e8f0;       /* slate-200 — hairline borders */
+  --color-line-soft: #f1f5f9;  /* slate-100 — faint fills / zebra */
 
-  /* Primary — deep slate-navy. The one brand color; everything else in
-     chrome stays neutral so this reads as intentional, not decorative. */
-  --color-primary: #1e3a5f;
-  --color-primary-soft: #eaf0f7;
-  --color-primary-hover: #16304d;
+  /* Primary — near-black slate. The one chrome color; shadcn-style
+     high-contrast primary action, everything around it stays neutral. */
+  --color-primary: #0f172a;
+  --color-primary-soft: #f1f5f9;  /* slate-100 tint for badges/tinted btns */
+  --color-primary-hover: #1e293b; /* slate-800 */
 
   /* Status only — never used for chrome/buttons/nav. */
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
   --color-success: #16a34a;
   --color-success-soft: #f0fdf4;
-  --color-warning: #ea580c;
-  --color-warning-soft: #fff7ed;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+
+  --radius: 0.625rem;
 }
 
 body {
@@ -41,6 +48,8 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* ---------------------------------------------------------------------
@@ -57,42 +66,56 @@ body {
 
 .table-wrap{
   overflow-x:auto;
-  border-radius:12px;
+  border-radius:14px;
   background:var(--color-surface);
-  box-shadow: 0 1px 2px rgba(20,24,31,0.05), 0 1px 1px rgba(20,24,31,0.03);
+  border:1px solid var(--color-line);
+  box-shadow:
+    0 1px 2px rgba(15,23,42,0.04),
+    0 8px 24px -12px rgba(15,23,42,0.10);
 }
-table{border-collapse:collapse; width:100%; font-family:var(--font-thai);}
-th,td{border:1px solid var(--color-line); padding:0; text-align:center;}
+table{border-collapse:separate; border-spacing:0; width:100%; font-family:var(--font-thai);}
+th,td{
+  border-right:1px solid var(--color-line);
+  border-bottom:1px solid var(--color-line);
+  padding:0;
+  text-align:center;
+}
 thead th{
-  background:#fafbfc;
-  color:var(--color-ink);
-  font-size:14px;
-  font-weight:700;
-  padding:6px 3px;
+  background:var(--color-line-soft);
+  color:var(--color-ink-soft);
+  font-size:13px;
+  font-weight:600;
+  padding:7px 3px;
+  letter-spacing:.01em;
   /* Offset to clear the sticky Toolbar bar above it (both stick to the
      viewport top, so without this the table header would slide underneath
      the Toolbar instead of stopping below it). ~104px is estimated from
-     Toolbar's own padding/content — no live browser available to measure
-     the actual rendered height, so verify this visually and adjust if the
+     Toolbar's own padding/content — verify visually and adjust if the
      header sits a few px too high/low under the bar. */
   position:sticky; top:104px; z-index:3;
-  border-bottom:2px solid var(--color-line);
+  border-bottom:1px solid var(--color-line);
 }
-thead th .wd{display:block; color:var(--color-primary); font-weight:700; font-size:11.5px; margin-top:2px;}
-thead th.holiday{background:var(--color-danger-soft);}
+thead th .wd{display:block; color:var(--color-ink-faint); font-weight:600; font-size:11px; margin-top:2px;}
+thead th.holiday{background:var(--color-danger-soft); color:var(--color-danger);}
 thead th.holiday .wd{color:var(--color-danger);}
 th.col-no, td.col-no{width:44px; min-width:44px;}
 th.col-code, td.col-code{width:92px; min-width:92px;}
-th.col-name, td.col-name{width:210px; min-width:210px; text-align:right; padding-right:6px;}
+th.col-name, td.col-name{width:210px; min-width:210px; text-align:right; padding-right:8px;}
 th.col-note, td.col-note{width:178px; min-width:178px;}
 td.col-name{font-weight:600;}
-th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:#fafbfc;}
-td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:#fff;}
-th.col-no,td.col-no{left:0;}
-th.col-code,td.col-code{left:34px;}
-th.col-name,td.col-name{left:112px; border-right:2px solid var(--color-line);}
-tr:nth-child(even){background:#fbfbfc;}
-tr:nth-child(even) td.col-name, tr:nth-child(even) td.col-no, tr:nth-child(even) td.col-code{background:#fbfbfc;}
+th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:var(--color-line-soft);}
+td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:var(--color-surface);}
+th.col-no,td.col-no{left:0; color:var(--color-ink-faint); font-weight:500;}
+th.col-code,td.col-code{left:44px;}
+th.col-name,td.col-name{left:136px; border-right:1px solid var(--color-line);}
+tbody tr:nth-child(even){background:var(--color-canvas);}
+tbody tr:nth-child(even) td.col-name,
+tbody tr:nth-child(even) td.col-no,
+tbody tr:nth-child(even) td.col-code{background:var(--color-canvas);}
+tbody tr:hover td{background:#f5f7fa;}
+tbody tr:hover td.col-name,
+tbody tr:hover td.col-no,
+tbody tr:hover td.col-code{background:#f5f7fa;}
 
 .pattern-badge{display:inline-block; font-size:12px; color:var(--color-ink-faint); font-weight:400; margin-top:1px; font-family:var(--font-sans);}
 
@@ -105,42 +128,43 @@ td.day-cell input{
   font-size:15px;
   font-weight:700;
   padding:8px 3px;
-  border-radius:4px;
+  border-radius:6px;
   color:var(--color-ink);
   font-family:inherit;
+  transition:box-shadow .12s ease, background-color .12s ease;
 }
 td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px;}
-td.day-cell.weekend{background:#fafaf8;}
+td.day-cell.weekend{background:var(--color-canvas);}
 td.day-cell.holiday{background:var(--color-danger-soft);}
-td.day-cell.predicted{box-shadow:inset 0 0 0 1px #fbd7ae;}
+td.day-cell.predicted{box-shadow:inset 0 0 0 1px #fcd9a6;}
 td.day-cell .predict-dot{
-  position:absolute; top:2px; right:2px; width:6px; height:6px; border-radius:50%;
-  background:#ea580c; pointer-events:none;
+  position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%;
+  background:var(--color-warning); pointer-events:none;
 }
 td.col-note input{
-  width:100%; border:none; background:transparent; padding:8px 6px; font-size:15px; text-align:left; font-family:inherit;
+  width:100%; border:none; background:transparent; padding:8px 8px; font-size:15px; text-align:left; font-family:inherit; color:var(--color-ink);
 }
-.rm-row{background:none;border:none;color:var(--color-ink-faint);cursor:pointer;padding:2px 4px;font-size:18px;}
-.rm-row:hover{color:var(--color-danger);}
-th.col-rm{width:26px; min-width:26px;}
-td.col-rm{width:26px; min-width:26px;}
+.rm-row{background:none;border:none;color:var(--color-ink-faint);cursor:pointer;padding:2px 4px;font-size:18px;line-height:1;border-radius:6px;transition:color .12s ease, background-color .12s ease;}
+.rm-row:hover{color:var(--color-danger); background:var(--color-danger-soft);}
+th.col-rm{width:30px; min-width:30px;}
+td.col-rm{width:30px; min-width:30px;}
 
-th.col-prev{width:82px; min-width:82px; background:#f1f1ef !important; color:var(--color-ink-soft);}
+th.col-prev{width:82px; min-width:82px; background:#eef1f5 !important; color:var(--color-ink-faint);}
 th.col-prev.prev-last{border-right:2px dashed var(--color-line);}
-th.col-prev .wd{color:var(--color-ink-soft) !important;}
-th.col-prev .prevtag{display:block; font-size:10px; font-weight:600; letter-spacing:.2px; margin-top:1px;}
+th.col-prev .wd{color:var(--color-ink-faint) !important;}
+th.col-prev .prevtag{display:block; font-size:10px; font-weight:600; letter-spacing:.02em; margin-top:1px; text-transform:uppercase;}
 td.day-cell.prev-day{background:var(--color-canvas);}
 td.day-cell.prev-day.prev-last{border-right:2px dashed var(--color-line);}
 td.day-cell.prev-day .prevval{
   display:block; width:100%; padding:8px 3px; font-size:15px; font-weight:700;
-  border-radius:4px; opacity:.62; user-select:none;
+  border-radius:6px; opacity:.55; user-select:none;
 }
-td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
+td.day-cell.prev-day .prevval.empty{opacity:.3; font-weight:400;}
 
-.footer-note{margin-top:14px; font-size:13.5px; color:var(--color-ink-soft); line-height:1.7; font-family:var(--font-sans);}
-.footer-note b{color:var(--color-ink);}
+.footer-note{margin-top:16px; font-size:13.5px; color:var(--color-ink-soft); line-height:1.8; font-family:var(--font-sans);}
+.footer-note b{color:var(--color-ink); font-weight:600;}
 
-.sign-block{display:flex; justify-content:flex-end; gap:60px; margin-top:26px; font-size:17px;}
+.sign-block{display:flex; justify-content:flex-end; gap:60px; margin-top:28px; font-size:17px;}
 .sign-block .line{border-bottom:1px dotted var(--color-ink-faint); width:190px; height:34px;}
 .sign-block .label{margin-top:4px; color:var(--color-ink-soft);}
 
@@ -152,7 +176,7 @@ td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
   .print-title{display:block; text-align:center; margin-bottom:8px;}
   .print-title h2{margin:0; font-size:19px;}
   .print-title div{font-size:15px; color:#555;}
-  .table-wrap{box-shadow:none;}
+  .table-wrap{box-shadow:none; border:none; border-radius:0;}
   thead th{position:static;}
   td.col-no,td.col-code,td.col-name,th.col-no,th.col-code,th.col-name{position:static;}
   td.day-cell.predicted{box-shadow:none;}

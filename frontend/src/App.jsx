@@ -575,7 +575,8 @@ export default function App(){
 
   if(!ready || !store.current.state){
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-canvas">
+        <span className="h-5 w-5 rounded-full border-2 border-line border-t-primary animate-spin" aria-hidden="true" />
         <span className="font-sans text-sm text-ink-faint">กำลังโหลด…</span>
       </div>
     );
@@ -598,8 +599,8 @@ export default function App(){
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 space-y-6">
         <div className="flex items-baseline justify-between gap-4">
           <div>
-            <h1 className="font-sans text-lg font-semibold text-ink tracking-tight">ตารางปฏิบัติงานประจำเดือน</h1>
-            <p className="mt-0.5 text-[13px] font-sans text-ink-faint">
+            <h1 className="font-sans text-xl font-semibold text-ink tracking-tight text-balance">ตารางปฏิบัติงานประจำเดือน</h1>
+            <p className="mt-1 text-[13px] font-sans text-ink-soft leading-relaxed text-pretty">
               กรอกตารางเดือนแรกให้ครบถ้วน ให้ระบบวิเคราะห์รูปแบบการหมุนกะ แล้วสร้างเดือนถัดไปได้อัตโนมัติ
             </p>
           </div>

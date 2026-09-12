@@ -10,19 +10,28 @@ export default function Toolbar({
   onAnalyze, onGenerateNext, onMarkReviewed,
 }){
   return (
-    <div className="sticky top-0 z-30 w-full border-b border-black/[0.06] bg-white/90 backdrop-blur no-print">
+    <div className="sticky top-0 z-30 w-full border-b border-line bg-surface/85 backdrop-blur-md supports-[backdrop-filter]:bg-surface/70 no-print">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Identity + navigation + primary save */}
-        <div className="flex flex-wrap items-end gap-2.5 py-2.5">
-          <div className="flex flex-col gap-1.5 min-w-[220px] flex-1">
-            <span className="text-[11px] font-sans font-medium text-ink-faint">หน่วยงาน</span>
-            <input
-              type="text"
-              value={state.department}
-              onChange={e=>onDeptChange(e.target.value)}
-              className="h-8 w-full rounded-md bg-transparent px-0 text-[15px] font-semibold text-ink font-sans
-                         focus:outline-none focus:ring-0 border-b border-transparent hover:border-line focus:border-primary transition-colors"
-            />
+        <div className="flex flex-wrap items-end gap-3 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-[240px] flex-1">
+            <span
+              aria-hidden="true"
+              className="grid place-items-center h-9 w-9 shrink-0 rounded-lg bg-primary text-white text-[15px] font-semibold font-sans shadow-sm shadow-primary/25"
+            >
+              ตว
+            </span>
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-[10.5px] font-sans font-medium uppercase tracking-wider text-ink-faint">หน่วยงาน</span>
+              <input
+                type="text"
+                value={state.department}
+                onChange={e=>onDeptChange(e.target.value)}
+                placeholder="ระบุชื่อหน่วยงาน"
+                className="h-6 w-full rounded-md bg-transparent px-0 text-[15px] font-semibold text-ink font-sans leading-none
+                           focus:outline-none focus:ring-0 border-b border-transparent hover:border-line focus:border-primary transition-colors"
+              />
+            </div>
           </div>
 
           <Field label="เดือน">
@@ -42,7 +51,7 @@ export default function Toolbar({
         </div>
 
         {/* Secondary actions */}
-        <div className="flex flex-wrap items-center gap-2 pb-2.5">
+        <div className="flex flex-wrap items-center gap-1.5 pb-2.5">
           <Button variant="secondary" size="sm" onClick={onAddEmployee}>+ เพิ่มพนักงาน</Button>
           <div className="w-px h-5 bg-line mx-1" />
           <Button variant="secondary" size="sm" onClick={onDownloadExcel}>⬇ Excel</Button>
