@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/* Design tokens — corporate navy/slate system. Primary (navy) is used
+   for chrome and primary actions ONLY — buttons, focus rings, active
+   nav, the sticky header. Red/green/orange are reserved exclusively for
+   status meaning (errors, success, OT/holiday flags) so they keep their
+   signal value instead of competing with brand color for attention,
+   which is the actual thing that makes an interface read as "generic
+   template" rather than "enterprise system a team relies on daily."
+   Sarabun stays the body/data typeface (Thai legibility, and it's the
+   same font the Excel/print export uses — on-screen and the signed
+   document should look like the same document). Inter handles UI chrome. */
+@theme {
+  --font-sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+  --font-thai: "TH Sarabun New", "Sarabun", "Noto Sans Thai", -apple-system, "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
+
+  --color-ink: #0f172a;
+  --color-ink-soft: #475569;
+  --color-ink-faint: #94a3b8;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-line: #e2e8f0;
+
+  /* Primary — deep slate-navy. The one brand color; everything else in
+     chrome stays neutral so this reads as intentional, not decorative. */
+  --color-primary: #1e3a5f;
+  --color-primary-soft: #eaf0f7;
+  --color-primary-hover: #16304d;
+
+  /* Status only — never used for chrome/buttons/nav. */
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-success: #16a34a;
+  --color-success-soft: #f0fdf4;
+  --color-warning: #ea580c;
+  --color-warning-soft: #fff7ed;
+}
+
+body {
+  font-family: var(--font-thai);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------
+   Everything below is scoped to the dense schedule table + print/export
+   output. Deliberately left as plain CSS rather than utility classes:
+   sticky multi-column headers, cell-level state (weekend/holiday/
+   predicted), and print media rules are precise, structural, and don't
+   benefit from being re-expressed as Tailwind — this is the one place in
+   the app where "spreadsheet density" is the correct design language,
+   not boxy clutter to remove. Everywhere else in the app, panel/button/
+   field styling now lives as Tailwind utilities directly in the
+   components.
+   --------------------------------------------------------------------- */
+
+.table-wrap{
+  overflow-x:auto;
+  border-radius:12px;
+  background:var(--color-surface);
+  box-shadow: 0 1px 2px rgba(20,24,31,0.05), 0 1px 1px rgba(20,24,31,0.03);
+}
+table{border-collapse:collapse; width:100%; font-family:var(--font-thai);}
+th,td{border:1px solid var(--color-line); padding:0; text-align:center;}
+thead th{
+  background:#fafbfc;
+  color:var(--color-ink);
+  font-size:14px;
+  font-weight:700;
+  padding:6px 3px;
+  /* Offset to clear the sticky Toolbar bar above it (both stick to the
+     viewport top, so without this the table header would slide underneath
+     the Toolbar instead of stopping below it). ~104px is estimated from
+     Toolbar's own padding/content — no live browser available to measure
+     the actual rendered height, so verify this visually and adjust if the
+     header sits a few px too high/low under the bar. */
+  position:sticky; top:104px; z-index:3;
+  border-bottom:2px solid var(--color-line);
+}
+thead th .wd{display:block; color:var(--color-primary); font-weight:700; font-size:11.5px; margin-top:2px;}
+thead th.holiday{background:var(--color-danger-soft);}
+thead th.holiday .wd{color:var(--color-danger);}
+th.col-no, td.col-no{width:44px; min-width:44px;}
+th.col-code, td.col-code{width:92px; min-width:92px;}
+th.col-name, td.col-name{width:210px; min-width:210px; text-align:right; padding-right:6px;}
+th.col-note, td.col-note{width:178px; min-width:178px;}
+td.col-name{font-weight:600;}
+th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:#fafbfc;}
+td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:#fff;}
+th.col-no,td.col-no{left:0;}
+th.col-code,td.col-code{left:34px;}
+th.col-name,td.col-name{left:112px; border-right:2px solid var(--color-line);}
+tr:nth-child(even){background:#fbfbfc;}
+tr:nth-child(even) td.col-name, tr:nth-child(even) td.col-no, tr:nth-child(even) td.col-code{background:#fbfbfc;}
+
+.pattern-badge{display:inline-block; font-size:12px; color:var(--color-ink-faint); font-weight:400; margin-top:1px; font-family:var(--font-sans);}
+
+td.day-cell{width:82px; min-width:82px; padding:2px; position:relative;}
+td.day-cell input{
+  width:100%;
+  border:none;
+  background:transparent;
+  text-align:center;
+  font-size:15px;
+  font-weight:700;
+  padding:8px 3px;
+  border-radius:4px;
+  color:var(--color-ink);
+  font-family:inherit;
+}
+td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px;}
+td.day-cell.weekend{background:#fafaf8;}
+td.day-cell.holiday{background:var(--color-danger-soft);}
+td.day-cell.predicted{box-shadow:inset 0 0 0 1px #fbd7ae;}
+td.day-cell .predict-dot{
+  position:absolute; top:2px; right:2px; width:6px; height:6px; border-radius:50%;
+  background:#ea580c; pointer-events:none;
+}
+td.col-note input{
+  width:100%; border:none; background:transparent; padding:8px 6px; font-size:15px; text-align:left; font-family:inherit;
+}
+.rm-row{background:none;border:none;color:var(--color-ink-faint);cursor:pointer;padding:2px 4px;font-size:18px;}
+.rm-row:hover{color:var(--color-danger);}
+th.col-rm{width:26px; min-width:26px;}
+td.col-rm{width:26px; min-width:26px;}
+
+th.col-prev{width:82px; min-width:82px; background:#f1f1ef !important; color:var(--color-ink-soft);}
+th.col-prev.prev-last{border-right:2px dashed var(--color-line);}
+th.col-prev .wd{color:var(--color-ink-soft) !important;}
+th.col-prev .prevtag{display:block; font-size:10px; font-weight:600; letter-spacing:.2px; margin-top:1px;}
+td.day-cell.prev-day{background:var(--color-canvas);}
+td.day-cell.prev-day.prev-last{border-right:2px dashed var(--color-line);}
+td.day-cell.prev-day .prevval{
+  display:block; width:100%; padding:8px 3px; font-size:15px; font-weight:700;
+  border-radius:4px; opacity:.62; user-select:none;
+}
+td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
+
+.footer-note{margin-top:14px; font-size:13.5px; color:var(--color-ink-soft); line-height:1.7; font-family:var(--font-sans);}
+.footer-note b{color:var(--color-ink);}
+
+.sign-block{display:flex; justify-content:flex-end; gap:60px; margin-top:26px; font-size:17px;}
+.sign-block .line{border-bottom:1px dotted var(--color-ink-faint); width:190px; height:34px;}
+.sign-block .label{margin-top:4px; color:var(--color-ink-soft);}
+
+.print-title{display:none;}
+
+@media print{
+  body{background:#fff; padding:0; font-size:14px;}
+  .no-print{display:none !important;}
+  .print-title{display:block; text-align:center; margin-bottom:8px;}
+  .print-title h2{margin:0; font-size:19px;}
+  .print-title div{font-size:15px; color:#555;}
+  .table-wrap{box-shadow:none;}
+  thead th{position:static;}
+  td.col-no,td.col-code,td.col-name,th.col-no,th.col-code,th.col-name{position:static;}
+  td.day-cell.predicted{box-shadow:none;}
+  .predict-dot{display:none;}
+  table{width:100%;}
+}
