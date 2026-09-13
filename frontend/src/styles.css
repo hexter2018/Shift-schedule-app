@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4): toggling `.dark` on <html> flips
+   every `dark:` utility. Combined with the @theme colors below being
+   re-declared inside `.dark`, most of the app re-themes for free — since
+   v4 compiles color utilities to `var(--color-x)`, components using
+   `text-ink` / `bg-canvas` / `ring-line` etc. never need their own
+   `dark:` class, the variable itself just changes. Only literal
+   Tailwind colors (bg-white, shadow-black/…) need explicit dark: pairs,
+   which is why you'll see those spelled out in the components. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Design tokens — corporate navy/slate system. Primary (navy) is used
    for chrome and primary actions ONLY — buttons, focus rings, active
    nav, the sticky header. Red/green/orange are reserved exclusively for
@@ -26,6 +36,7 @@
   --color-primary: #1e3a5f;
   --color-primary-soft: #eaf0f7;
   --color-primary-hover: #16304d;
+  --color-primary-bright: #2f6fb0;
 
   /* Status only — never used for chrome/buttons/nav. */
   --color-danger: #dc2626;
@@ -34,6 +45,45 @@
   --color-success-soft: #f0fdf4;
   --color-warning: #ea580c;
   --color-warning-soft: #fff7ed;
+
+  --animate-fade-in: fade-in .35s ease-out both;
+  --animate-fade-up: fade-up .4s cubic-bezier(.16,1,.3,1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* Dark palette — same structure, inverted. `.dark` sits on <html>, and
+   because every semantic color above is a real CSS variable, this one
+   block re-themes surfaces, text, lines and tinted status colors across
+   the whole app without editing each component. */
+.dark {
+  --color-ink: #e7edf5;
+  --color-ink-soft: #a7b4c6;
+  --color-ink-faint: #64748b;
+  --color-canvas: #0b1220;
+  --color-surface: #131c2e;
+  --color-line: #253045;
+
+  --color-primary: #4d84c4;
+  --color-primary-soft: #17293f;
+  --color-primary-hover: #6a9bd4;
+  --color-primary-bright: #6a9bd4;
+
+  --color-danger: #f87171;
+  --color-danger-soft: #2a1417;
+  --color-success: #4ade80;
+  --color-success-soft: #10241a;
+  --color-warning: #fb923c;
+  --color-warning-soft: #2a1c0f;
+
+  color-scheme: dark;
 }
 
 body {
@@ -41,6 +91,7 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
+  transition: background-color .2s ease, color .2s ease;
 }
 
 /* ---------------------------------------------------------------------
@@ -57,9 +108,14 @@ body {
 
 .table-wrap{
   overflow-x:auto;
-  border-radius:12px;
+  overflow-y:visible;
+  border-radius:14px;
   background:var(--color-surface);
   box-shadow: 0 1px 2px rgba(20,24,31,0.05), 0 1px 1px rgba(20,24,31,0.03);
+  scrollbar-width:thin;
+}
+.dark .table-wrap{
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
 }
 table{border-collapse:collapse; width:100%; font-family:var(--font-thai);}
 th,td{border:1px solid var(--color-line); padding:0; text-align:center;}
@@ -87,12 +143,20 @@ th.col-name, td.col-name{width:210px; min-width:210px; text-align:right; padding
 th.col-note, td.col-note{width:178px; min-width:178px;}
 td.col-name{font-weight:600;}
 th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:#fafbfc;}
-td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:#fff;}
+td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:var(--color-surface);}
 th.col-no,td.col-no{left:0;}
 th.col-code,td.col-code{left:34px;}
 th.col-name,td.col-name{left:112px; border-right:2px solid var(--color-line);}
 tr:nth-child(even){background:#fbfbfc;}
 tr:nth-child(even) td.col-name, tr:nth-child(even) td.col-no, tr:nth-child(even) td.col-code{background:#fbfbfc;}
+tr{transition:background-color .1s ease;}
+tr:hover td{background:var(--color-primary-soft);}
+tr:hover td.col-name, tr:hover td.col-no, tr:hover td.col-code{background:var(--color-primary-soft);}
+
+.dark thead th,
+.dark th.col-no, .dark th.col-code, .dark th.col-name{background:#0f1929;}
+.dark tr:nth-child(even){background:#101a2b;}
+.dark tr:nth-child(even) td.col-name, .dark tr:nth-child(even) td.col-no, .dark tr:nth-child(even) td.col-code{background:#101a2b;}
 
 .pattern-badge{display:inline-block; font-size:12px; color:var(--color-ink-faint); font-weight:400; margin-top:1px; font-family:var(--font-sans);}
 
@@ -109,8 +173,9 @@ td.day-cell input{
   color:var(--color-ink);
   font-family:inherit;
 }
-td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px;}
+td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px; border-radius:6px; background:var(--color-primary-soft);}
 td.day-cell.weekend{background:#fafaf8;}
+.dark td.day-cell.weekend{background:#0f1929;}
 td.day-cell.holiday{background:var(--color-danger-soft);}
 td.day-cell.predicted{box-shadow:inset 0 0 0 1px #fbd7ae;}
 td.day-cell .predict-dot{
@@ -126,6 +191,7 @@ th.col-rm{width:26px; min-width:26px;}
 td.col-rm{width:26px; min-width:26px;}
 
 th.col-prev{width:82px; min-width:82px; background:#f1f1ef !important; color:var(--color-ink-soft);}
+.dark th.col-prev{background:#0c1523 !important;}
 th.col-prev.prev-last{border-right:2px dashed var(--color-line);}
 th.col-prev .wd{color:var(--color-ink-soft) !important;}
 th.col-prev .prevtag{display:block; font-size:10px; font-weight:600; letter-spacing:.2px; margin-top:1px;}
@@ -145,6 +211,9 @@ td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
 .sign-block .label{margin-top:4px; color:var(--color-ink-soft);}
 
 .print-title{display:none;}
+
+.no-scrollbar{-ms-overflow-style:none; scrollbar-width:none;}
+.no-scrollbar::-webkit-scrollbar{display:none;}
 
 @media print{
   body{background:#fff; padding:0; font-size:14px;}

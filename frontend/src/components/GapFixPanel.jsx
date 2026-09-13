@@ -34,7 +34,7 @@ export default function GapFixPanel({ onFixGaps, gapFixResult, onAssignOtFromGap
                     const warn = c.prevOvernight ? " ⚠️ เพิ่งลงกะดึกเมื่อวันก่อน" : "";
                     return (
                       <button key={ci} title={statusLabel+warn} onClick={()=>onAssignOtFromGap(c.emp.id, item.day, "N10")}
-                        className="inline-flex items-center rounded-md bg-white ring-1 ring-inset ring-line px-2 py-1 mx-0.5 hover:ring-primary hover:text-primary transition-colors">
+                        className="inline-flex items-center rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-2 py-1 mx-0.5 hover:ring-primary hover:text-primary transition-colors">
                         {c.emp.name||c.emp.empCode} (OT:{c.otCount})
                       </button>
                     );

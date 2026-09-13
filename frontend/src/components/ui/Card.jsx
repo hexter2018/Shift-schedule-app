@@ -1,7 +1,9 @@
 export default function Card({ title, action, children, className = "", bodyClassName = "", noPrint = false }){
   return (
     <section className={[
-      "rounded-lg bg-white shadow-sm shadow-black/[0.04] ring-1 ring-black/[0.04]",
+      "rounded-xl bg-white dark:bg-surface shadow-sm shadow-black/[0.04] dark:shadow-black/30",
+      "ring-1 ring-black/[0.04] dark:ring-white/[0.06]",
+      "transition-shadow duration-150 hover:shadow-md hover:shadow-black/[0.06] dark:hover:shadow-black/40",
       noPrint ? "no-print" : "",
       className,
     ].join(" ")}>

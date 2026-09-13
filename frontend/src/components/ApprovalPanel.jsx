@@ -64,7 +64,7 @@ function SubmitForm({ defaultSection, defaultDivision, submitting, error, onSubm
 export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, submitting, submitError }){
   if(loading){
     return (
-      <div className="no-print flex items-center gap-2 rounded-md bg-white ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans text-ink-faint">
+      <div className="no-print flex items-center gap-2 rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans text-ink-faint">
         กำลังโหลดสถานะการอนุมัติ…
       </div>
     );
@@ -94,7 +94,7 @@ export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, 
       ? `ผู้จัดการแผนก (${status.sectionManagerEmail})`
       : `ผู้จัดการส่วน (${status.divisionManagerEmail})`;
     return (
-      <div className="no-print flex flex-wrap items-center gap-2.5 rounded-md bg-white ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans">
+      <div className="no-print flex flex-wrap items-center gap-2.5 rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans">
         <StatusDot tone="pending" pulse />
         <span className="text-ink">
           รออนุมัติจาก{waitingFor}
@@ -111,7 +111,7 @@ export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, 
 
   if(st === "approved"){
     return (
-      <div className="no-print flex flex-wrap items-center gap-2.5 rounded-md bg-white ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans">
+      <div className="no-print flex flex-wrap items-center gap-2.5 rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans">
         <StatusDot tone="success" />
         <span className="text-ink">อนุมัติครบทั้ง 2 ระดับแล้ว</span>
         <span className="text-ink-faint">

@@ -26,12 +26,12 @@ export default function ShiftCodeLegend({ state, onChangeCode, onRemoveCode, onA
               className="w-5 h-5 rounded-full border-0 p-0 cursor-pointer" style={{background:c.color}} />
             <input type="text" defaultValue={c.code} maxLength={6} placeholder="รหัส"
               onBlur={e=>onChangeCode(i, {...c, code:e.target.value.trim().toUpperCase()})}
-              className="w-16 h-7 rounded-md bg-white px-2 text-[13.5px] font-sans font-medium text-ink ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
+              className="w-16 h-7 rounded-md bg-white dark:bg-surface px-2 text-[13.5px] font-sans font-medium text-ink ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
             <input type="time" defaultValue={c.start} onChange={e=>onChangeCode(i, {...c, start:e.target.value})}
-              className="h-7 rounded-md bg-white px-1.5 text-[12.5px] font-sans text-ink-soft ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
+              className="h-7 rounded-md bg-white dark:bg-surface px-1.5 text-[12.5px] font-sans text-ink-soft ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
             <span className="text-ink-faint text-xs">–</span>
             <input type="time" defaultValue={c.end} onChange={e=>onChangeCode(i, {...c, end:e.target.value})}
-              className="h-7 rounded-md bg-white px-1.5 text-[12.5px] font-sans text-ink-soft ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
+              className="h-7 rounded-md bg-white dark:bg-surface px-1.5 text-[12.5px] font-sans text-ink-soft ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
             <button onClick={()=>onRemoveCode(i)} title="ลบรหัสนี้"
               className="text-ink-faint hover:text-danger text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity px-0.5">×</button>
           </div>

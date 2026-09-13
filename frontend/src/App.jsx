@@ -23,6 +23,18 @@ import ScheduleTable from "./components/ScheduleTable";
 import ApprovalPanel from "./components/ApprovalPanel";
 import Banner from "./components/ui/Banner";
 
+function useTheme(){
+  const [dark, setDark] = useState(()=>{
+    if(typeof document !== "undefined") return document.documentElement.classList.contains("dark");
+    return false;
+  });
+  useEffect(()=>{
+    document.documentElement.classList.toggle("dark", dark);
+    try{ localStorage.setItem("theme", dark ? "dark" : "light"); }catch{ /* ignore */ }
+  }, [dark]);
+  return [dark, ()=>setDark(d=>!d)];
+}
+
 export default function App(){
   // A single mutable store mirrors the original tool's module-global
   // variables (state / patternLib / holidays / groupRotations /
@@ -45,6 +57,7 @@ export default function App(){
     setTick(t=>t+1);
   }, []);
 
+  const [dark, toggleDark] = useTheme();
   const [ready, setReady] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [analyzeMonthsBack, setAnalyzeMonthsBack] = useState(3);
@@ -576,7 +589,10 @@ export default function App(){
   if(!ready || !store.current.state){
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas">
-        <span className="font-sans text-sm text-ink-faint">กำลังโหลด…</span>
+        <div className="flex flex-col items-center gap-3 animate-fade-in">
+          <span className="h-7 w-7 rounded-full border-2 border-line border-t-primary animate-spin" />
+          <span className="font-sans text-sm text-ink-faint">กำลังโหลด…</span>
+        </div>
       </div>
     );
   }
@@ -593,12 +609,15 @@ export default function App(){
           onAddEmployee={addEmployee} onSave={saveState}
           onDownloadPdf={onDownloadPdf} onDownloadExcel={onDownloadExcel} onPrint={onPrint}
           onAnalyze={analyzePatterns} onGenerateNext={generateNextMonth} onMarkReviewed={markAllReviewed}
+          dark={dark} onToggleDark={toggleDark}
         />
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 space-y-6 animate-fade-up">
         <div className="flex items-baseline justify-between gap-4">
           <div>
-            <h1 className="font-sans text-lg font-semibold text-ink tracking-tight">ตารางปฏิบัติงานประจำเดือน</h1>
+            <h1 className="font-sans text-lg sm:text-xl font-semibold tracking-tight bg-gradient-to-r from-primary to-primary-bright bg-clip-text text-transparent">
+              ตารางปฏิบัติงานประจำเดือน
+            </h1>
             <p className="mt-0.5 text-[13px] font-sans text-ink-faint">
               กรอกตารางเดือนแรกให้ครบถ้วน ให้ระบบวิเคราะห์รูปแบบการหมุนกะ แล้วสร้างเดือนถัดไปได้อัตโนมัติ
             </p>

@@ -87,7 +87,7 @@ export default function CoverageList({ state, patternLib, manualVacated, onUseVa
                   const warn = c.prevOvernight ? " ⚠️ เพิ่งลงกะดึกเมื่อวันก่อน" : "";
                   return (
                     <button key={ci} title={statusLabel+warn} onClick={()=>onAssignOt(c.emp.id, day, vacatedBase)}
-                      className="inline-flex items-center rounded-md bg-white ring-1 ring-inset ring-line px-2 py-1 mx-0.5 hover:ring-primary hover:text-primary transition-colors">
+                      className="inline-flex items-center rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-2 py-1 mx-0.5 hover:ring-primary hover:text-primary transition-colors">
                       {c.emp.name || c.emp.empCode} (OT:{c.otCount})
                     </button>
                   );

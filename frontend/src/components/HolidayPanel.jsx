@@ -60,7 +60,7 @@ export default function HolidayPanel({ holidays, onAddHoliday, onRenameHoliday, 
             <div key={h.id} className="group flex items-center gap-2 rounded-lg bg-canvas ring-1 ring-inset ring-line px-2.5 py-1.5">
               <span className="text-[13px] font-sans text-ink-soft min-w-[80px]">{dateLabel}</span>
               <input type="text" defaultValue={h.name} onBlur={e=>onRenameHoliday(h.id, e.target.value)}
-                className="w-36 h-7 rounded-md bg-white px-2 text-[13.5px] font-sans text-ink ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
+                className="w-36 h-7 rounded-md bg-white dark:bg-surface px-2 text-[13.5px] font-sans text-ink ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
               <button onClick={()=>onRemoveHoliday(h.id)} title="ลบวันหยุดนี้"
                 className="text-ink-faint hover:text-danger text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity px-0.5">×</button>
             </div>

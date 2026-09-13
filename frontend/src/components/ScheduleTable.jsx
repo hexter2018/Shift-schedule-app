@@ -73,7 +73,7 @@ function EmployeeNameCell({ emp, patternLib, otCount, onEmployeeField }){
           <input type="text" list="shiftGroupList" defaultValue={emp.shiftGroup || ""} placeholder="กลุ่ม"
             title="ระบุกลุ่มหมุนเวียนกะ (CT, PM, SES, SOE, Day) เพื่อให้ระบบตรวจสอบว่าแต่ละวันครบทั้ง 3 กะ ในกลุ่มเดียวกันหรือไม่"
             onBlur={e=>onEmployeeField(emp.id, "shiftGroup", e.target.value.trim())}
-            className="w-16 h-5 rounded bg-white px-1.5 text-[11px] font-sans text-ink text-right ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
+            className="w-16 h-5 rounded bg-white dark:bg-surface px-1.5 text-[11px] font-sans text-ink text-right ring-1 ring-inset ring-line focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
       )}
     </td>

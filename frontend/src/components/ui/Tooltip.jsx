@@ -19,7 +19,7 @@ export default function Tooltip({ children, side = "bottom", width = "20rem" }){
           "pointer-events-none absolute z-20 opacity-0 scale-95",
           "group-hover/tip:opacity-100 group-hover/tip:scale-100 group-focus-within/tip:opacity-100 group-focus-within/tip:scale-100",
           "transition-[opacity,transform] duration-100 origin-top",
-          "rounded-lg bg-ink text-white text-[13px] leading-relaxed font-sans p-3 shadow-lg shadow-black/20",
+          "rounded-lg bg-slate-900 dark:bg-slate-800 dark:ring-1 dark:ring-white/10 text-white text-[13px] leading-relaxed font-sans p-3 shadow-lg shadow-black/20",
           posClass,
         ].join(" ")}
         style={{ width }}
