@@ -4,6 +4,7 @@ import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Field, { inputClass } from "./ui/Field";
 import Tooltip from "./ui/Tooltip";
+import { IconDownload } from "./ui/Icon";
 
 function fmtThaiDateTime(iso){
   if(!iso) return "";
@@ -36,7 +37,7 @@ function StatusDot({ tone, pulse }){
 
 // Compact, single-row grid: two email fields + submit button share one
 // line on desktop instead of three stacked full-width rows.
-function SubmitForm({ defaultSection, defaultDivision, submitting, error, onSubmit, submitLabel }){
+function SubmitForm({ defaultSection, defaultDivision, submitting, error, onSubmit, submitLabel, blocked }){
   const [sectionEmail, setSectionEmail] = useState(defaultSection || "");
   const [divisionEmail, setDivisionEmail] = useState(defaultDivision || "");
 
@@ -51,7 +52,7 @@ function SubmitForm({ defaultSection, defaultDivision, submitting, error, onSubm
           <input type="email" value={divisionEmail} placeholder="division.manager@company.co.th"
             className={inputClass} onChange={e=>setDivisionEmail(e.target.value)} />
         </Field>
-        <Button variant="primary" disabled={submitting || !sectionEmail.trim() || !divisionEmail.trim()}
+        <Button variant="primary" disabled={blocked || submitting || !sectionEmail.trim() || !divisionEmail.trim()}
           onClick={()=>onSubmit(sectionEmail.trim(), divisionEmail.trim())}>
           {submitting ? "กำลังส่ง…" : submitLabel}
         </Button>
@@ -61,7 +62,7 @@ function SubmitForm({ defaultSection, defaultDivision, submitting, error, onSubm
   );
 }
 
-export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, submitting, submitError }){
+export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, submitting, submitError, reviewBlockingCount=0 }){
   if(loading){
     return (
       <div className="no-print flex items-center gap-2 rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans text-ink-faint">
@@ -84,7 +85,8 @@ export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, 
           </span>
         }
       >
-        <SubmitForm submitting={submitting} error={submitError} onSubmit={onSubmit} submitLabel="ส่งเพื่ออนุมัติ" />
+        {reviewBlockingCount > 0 && <div className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-[12px] font-sans text-danger">ยังส่งไม่ได้: พบ {reviewBlockingCount} จุดที่ต้องแก้ในแท็บ “ตรวจสอบ”</div>}
+        <SubmitForm submitting={submitting} error={submitError} onSubmit={onSubmit} submitLabel="ส่งเพื่ออนุมัติ" blocked={reviewBlockingCount > 0} />
       </Card>
     );
   }
@@ -111,16 +113,31 @@ export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, 
 
   if(st === "approved"){
     return (
-      <div className="no-print flex flex-wrap items-center gap-2.5 rounded-md bg-white dark:bg-surface ring-1 ring-inset ring-line px-3.5 py-2 text-[13px] font-sans">
-        <StatusDot tone="success" />
-        <span className="text-ink">อนุมัติครบทั้ง 2 ระดับแล้ว</span>
-        <span className="text-ink-faint">
-          · {status.sectionApproverName} ({fmtThaiDateTime(status.sectionApprovedAt)}) · {status.divisionApproverName} ({fmtThaiDateTime(status.divisionApprovedAt)})
-        </span>
-        <a href={approvedFileUrl(scheduleKey)} target="_blank" rel="noreferrer" className="ml-auto">
-          <Button variant="tinted" size="sm">⬇ ดาวน์โหลดไฟล์ที่อนุมัติแล้ว</Button>
-        </a>
-      </div>
+      <Card noPrint
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            อนุมัติครบทั้ง 2 ระดับแล้ว
+            <Tooltip width="22rem">
+              ถ้าแก้ไขตารางกะหลังจากนี้ ส่งเพื่ออนุมัติใหม่ได้เลยด้านล่าง — ระบบจะเก็บเป็นรอบใหม่ (revision) แยกจากไฟล์ที่อนุมัติไปแล้ว ไม่ทับของเดิม
+            </Tooltip>
+          </span>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2.5 text-[13px] font-sans mb-3">
+          <StatusDot tone="success" />
+          <span className="text-ink-faint">
+            {status.sectionApproverName} ({fmtThaiDateTime(status.sectionApprovedAt)}) · {status.divisionApproverName} ({fmtThaiDateTime(status.divisionApprovedAt)})
+          </span>
+          <a href={approvedFileUrl(scheduleKey)} target="_blank" rel="noreferrer" className="ml-auto">
+            <Button variant="tinted" size="sm"><IconDownload size={13} />ดาวน์โหลดไฟล์ที่อนุมัติแล้ว</Button>
+          </a>
+        </div>
+        {reviewBlockingCount > 0 && <div className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-[12px] font-sans text-danger">ยังส่งไม่ได้: พบ {reviewBlockingCount} จุดที่ต้องแก้ในแท็บ “ตรวจสอบ”</div>}
+        <SubmitForm
+          defaultSection={status.sectionManagerEmail} defaultDivision={status.divisionManagerEmail}
+          submitting={submitting} error={submitError} onSubmit={onSubmit} submitLabel="ส่งเพื่ออนุมัติอีกครั้ง" blocked={reviewBlockingCount > 0}
+        />
+      </Card>
     );
   }
 
@@ -137,9 +154,10 @@ export default function ApprovalPanel({ scheduleKey, status, loading, onSubmit, 
             {status.rejectedReason ? ` — ${status.rejectedReason}` : ""}
           </span>
         </div>
+        {reviewBlockingCount > 0 && <div className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-[12px] font-sans text-danger">ยังส่งไม่ได้: พบ {reviewBlockingCount} จุดที่ต้องแก้ในแท็บ “ตรวจสอบ”</div>}
         <SubmitForm
           defaultSection={status.sectionManagerEmail} defaultDivision={status.divisionManagerEmail}
-          submitting={submitting} error={submitError} onSubmit={onSubmit} submitLabel="ส่งเพื่ออนุมัติอีกครั้ง"
+          submitting={submitting} error={submitError} onSubmit={onSubmit} submitLabel="ส่งเพื่ออนุมัติอีกครั้ง" blocked={reviewBlockingCount > 0}
         />
       </Card>
     );

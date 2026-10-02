@@ -1,8 +1,14 @@
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
+// html2canvas + jspdf are both large and only needed when someone
+// actually downloads a PDF (see excel.js for the same reasoning on
+// xlsx-js-style) — loaded dynamically inside downloadPDF, which is
+// already async, so this costs nothing structurally.
 import { THAI_MONTHS } from "./logic";
 
 export async function downloadPDF(captureEl, state){
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
   const canvas = await html2canvas(captureEl, {
     scale: 2,
     backgroundColor: "#ffffff",
@@ -12,6 +18,14 @@ export async function downloadPDF(captureEl, state){
       root.querySelectorAll(".no-print").forEach(e=>{ e.style.display = "none"; });
       root.querySelectorAll(".predict-dot").forEach(e=>{ e.style.display = "none"; });
       root.querySelectorAll(".day-cell.predicted").forEach(e=>{ e.style.boxShadow = "none"; });
+      // table-wrap scrolls internally (bounded height, sticky header) for
+      // on-screen use — for the exported image we want the whole table,
+      // not just whatever's currently scrolled into view.
+      root.querySelectorAll(".table-wrap").forEach(e=>{
+        e.style.maxHeight = "none";
+        e.style.overflow = "visible";
+      });
+      root.querySelectorAll("thead th").forEach(e=>{ e.style.position = "static"; });
       const pt = root.querySelector("#printTitle");
       if(pt) pt.style.display = "block";
     }

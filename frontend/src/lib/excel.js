@@ -1,7 +1,12 @@
-import * as XLSX from "xlsx-js-style";
+// xlsx-js-style is a large library (a major contributor to the old
+// ~2MB single bundle) only ever needed when someone actually exports
+// or imports an Excel file — not on every page load just to show the
+// login screen or the schedule table. Loaded dynamically (see
+// exportExcel below and excelImport.js) so Vite code-splits it into
+// its own chunk, fetched on first use instead of up front.
 import {
   THAI_MONTHS, daysInMonth, isHoliday, isWeekend, weekdayLabel,
-  parseCellValue, tintHex, hexNoHash
+  parseCellValue, tintHex, hexNoHash, contrastText
 } from "./logic";
 
 // Matches the department's real template (see the uploaded reference
@@ -17,7 +22,7 @@ const FONT_SIZE = 18;
 // groups on the printed schedule).
 const GROUP_SEPARATOR_AFTER = new Set([4, 9, 13, 17]);
 
-export function buildStyledWorksheet(state, holidays){
+export function buildStyledWorksheet(XLSX, state, holidays){
   const nd = daysInMonth(state.yearBE, state.month);
   const lastCol = nd + 3; // 0-indexed: no(0), code(1), name(2), days(3..nd+2), note(nd+3)
 
@@ -54,22 +59,6 @@ export function buildStyledWorksheet(state, holidays){
       rowHeights.push({hpt:27});
     }
   });
-
-  const monthHolidays = [];
-  for(let d=1; d<=nd; d++){
-    const h = isHoliday(state.yearBE, state.month, d, holidays);
-    if(h) monthHolidays.push({ d, name: h.name });
-  }
-  let holidayListStartRow = -1;
-  if(monthHolidays.length){
-    aoa.push([]); rowHeights.push({});
-    holidayListStartRow = aoa.length;
-    aoa.push(["วันหยุดในเดือนนี้"]); rowHeights.push({hpt:24});
-    monthHolidays.forEach(h=>{
-      aoa.push([`วันที่ ${h.d}`, h.name]);
-      rowHeights.push({hpt:24});
-    });
-  }
 
   // Signature block: fixed 4-column-wide blocks, 2-column gap, the second
   // block's right edge sits on the last *day* column (not the note
@@ -155,14 +144,20 @@ export function buildStyledWorksheet(state, holidays){
       const raw = emp.days[d] || "";
       const { base, wh, th, ot } = parseCellValue(raw);
       const def = state.shiftCodes.find(sc=>sc.code.toUpperCase()===base);
+      const otColor = state.otColor || "#c2517d";
+      const thColor = state.thColor || "#b45050";
       let style;
       if(def){
-        const bgHex = tintHex(def.color, (wh||th) ? 0.55 : 0.86);
+        // 0.68 (not 0.55) matches the current web-table tint — this used
+        // to be out of sync with logic.js's styleForCell, so the
+        // downloaded file's WH/TH cells read visibly more saturated than
+        // what's on screen.
+        const bgHex = tintHex(def.color, (wh||th) ? 0.68 : 0.86);
         const fgHex = hexNoHash(def.color);
         let border = allSides;
         if(wh){ const b = { style: "dashed", color: argb(fgHex) }; border = { top: b, bottom: b, left: b, right: b }; }
-        if(th){ const b = { style: "dotted", color: argb("B91C1C") }; border = { top: b, bottom: b, left: b, right: b }; }
-        if(ot){ const b = { style: "medium", color: argb("DB2777") }; border = { top: b, bottom: b, left: b, right: b }; }
+        if(th){ const b = { style: "dotted", color: argb(thColor) }; border = { top: b, bottom: b, left: b, right: b }; }
+        if(ot){ const b = { style: "medium", color: argb(otColor) }; border = { top: b, bottom: b, left: b, right: b }; }
         style = { font: { ...baseFont, bold: true, color: argb(fgHex) }, fill: { patternType: "solid", fgColor: argb(bgHex) }, alignment: { horizontal: "center", vertical: "center" }, border };
       } else if(base === "WH"){
         style = { font: { ...baseFont, color: argb("6B645C") }, fill: { patternType: "solid", fgColor: argb("EFECE4") }, alignment: { horizontal: "center", vertical: "center" }, border: allSides };
@@ -171,9 +166,26 @@ export function buildStyledWorksheet(state, holidays){
         style = { font: baseFont, alignment: { horizontal: "center", vertical: "center" }, border: allSides };
         if(hol) style.fill = { patternType: "solid", fgColor: argb("FDEAEA") };
       }
+      // A manual highlight (right-click on the web table) is purely
+      // visual and independent of the shift code — same rule here: it
+      // overrides the fill color only, keeping whatever border the shift
+      // code's WH/TH/OT flags already set, and switches to a contrasting
+      // font color the same way the web table does, since an arbitrary
+      // user-picked color can't be assumed to work with the shift code's
+      // own (tint-tuned) text color.
+      const highlight = emp.cellColors && emp.cellColors[d];
+      if(highlight){
+        style.fill = { patternType: "solid", fgColor: argb(highlight) };
+        style.font = { ...style.font, color: argb(contrastText(highlight)) };
+      }
       setStyle(r, c, style);
     }
-    setStyle(r, lastCol, { font: baseFont, alignment: { horizontal: "left", vertical: "center" }, border: allSides });
+    let noteStyle = { font: baseFont, alignment: { horizontal: "left", vertical: "center" }, border: allSides };
+    if(emp.noteColor){
+      noteStyle = { ...noteStyle, fill: { patternType: "solid", fgColor: argb(emp.noteColor) },
+        font: { ...baseFont, color: argb(contrastText(emp.noteColor)) } };
+    }
+    setStyle(r, lastCol, noteStyle);
   });
 
   separatorRowIndices.forEach(r=>{
@@ -181,15 +193,6 @@ export function buildStyledWorksheet(state, holidays){
       setStyle(r, c, { font: baseFont, border: allSides });
     }
   });
-
-  if(holidayListStartRow >= 0){
-    setStyle(holidayListStartRow, 0, { font: { ...baseFont, bold: true, color: argb("B91C1C") } });
-    monthHolidays.forEach((h, i)=>{
-      const r = holidayListStartRow + 1 + i;
-      setStyle(r, 0, { font: { ...baseFont, bold: true, color: argb("B91C1C") }, fill: { patternType: "solid", fgColor: argb("FDEAEA") }, alignment: { horizontal: "center", vertical: "center" } });
-      setStyle(r, 1, { font: baseFont });
-    });
-  }
 
   const sigLine = { style: "dashed", color: argb("6B645C") };
   [block1Start, block2Start].forEach(colStart=>{
@@ -201,8 +204,9 @@ export function buildStyledWorksheet(state, holidays){
   return ws;
 }
 
-export function exportExcel(state, holidays){
-  const ws = buildStyledWorksheet(state, holidays);
+export async function exportExcel(state, holidays){
+  const XLSX = await import("xlsx-js-style");
+  const ws = buildStyledWorksheet(XLSX, state, holidays);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "ตารางกะ");
   const safeDept = (state.department || "ตารางกะ").replace(/[\\/:*?"<>|]/g, "");

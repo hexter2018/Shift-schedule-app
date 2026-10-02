@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
+import { IconPlus, IconRefresh } from "./ui/Icon";
 import Field, { inputClass } from "./ui/Field";
 import Tooltip from "./ui/Tooltip";
 
@@ -43,10 +44,10 @@ export default function HolidayPanel({ holidays, onAddHoliday, onRenameHoliday, 
             className="w-4 h-4 rounded accent-primary" />
           ตรงวันเดิมทุกปี
         </label>
-        <Button variant="secondary" size="sm" onClick={submit}>+ เพิ่มวันหยุด</Button>
+        <Button variant="secondary" size="sm" onClick={submit}><IconPlus size={13} />เพิ่มวันหยุด</Button>
         <Button variant="ghost" size="sm" onClick={onLoadDefaults}>โหลดวันหยุดราชการทั่วไป</Button>
         <Button variant="tinted" size="sm" onClick={onApplyHolidays} title="ปรับกะของเดือนนี้ให้ตรงกับวันหยุดที่ตั้งไว้ทั้งหมดอีกครั้ง">
-          🔄 ปรับกะให้ตรงกับวันหยุด
+          <IconRefresh size={13} />ปรับกะให้ตรงกับวันหยุด
         </Button>
       </div>
 

@@ -120,6 +120,7 @@ def init_approvals_db():
             "sig_cert_row": "INTEGER",
             "section_approval_id": "TEXT",
             "division_approval_id": "TEXT",
+            "section_signed_at": "TEXT",
         })
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_approval_cycles_schedule_key
@@ -178,6 +179,33 @@ def latest_cycle_for_schedule(schedule_key: str) -> sqlite3.Row | None:
         ).fetchone()
 
 
+def list_cycles_for_schedule(schedule_key: str) -> list[sqlite3.Row]:
+    """Full revision history for one schedule — every submission (initial,
+    plus every resubmission after a reject or an edit), newest first.
+    Separate from latest_cycle_for_schedule, which only the live
+    approval-status view needs; this is for a history/audit view."""
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM approval_cycles WHERE schedule_key = ? ORDER BY cycle_number DESC",
+            (schedule_key,),
+        ).fetchall()
+
+
+def next_cycle_number(schedule_key: str) -> int:
+    """What create_cycle() below would assign, computed early — the
+    approved/pending filenames need to encode the revision number, and
+    those filenames are built before a row (and thus an id) exists to
+    derive it from. create_cycle() takes the result back in as
+    cycle_number rather than recomputing it, so the two never drift
+    apart even though they're now two separate calls instead of one."""
+    with get_conn() as conn:
+        prev = conn.execute(
+            "SELECT MAX(cycle_number) AS n FROM approval_cycles WHERE schedule_key = ?",
+            (schedule_key,),
+        ).fetchone()
+        return (prev["n"] or 0) + 1
+
+
 def list_active_cycles() -> list[sqlite3.Row]:
     """What the poller iterates every tick — every cycle still awaiting an
     outcome, across all schedules."""
@@ -187,14 +215,9 @@ def list_active_cycles() -> list[sqlite3.Row]:
         ).fetchall()
 
 
-def create_cycle(*, schedule_key, pending_file_path, layout, section_manager_email,
+def create_cycle(*, schedule_key, cycle_number, pending_file_path, layout, section_manager_email,
                   division_manager_email, created_by) -> int:
     with get_conn() as conn:
-        prev = conn.execute(
-            "SELECT MAX(cycle_number) AS n FROM approval_cycles WHERE schedule_key = ?",
-            (schedule_key,),
-        ).fetchone()
-        cycle_number = (prev["n"] or 0) + 1
         now = _now()
         cur = conn.execute("""
             INSERT INTO approval_cycles (
@@ -257,6 +280,21 @@ def advance_to_pending_division(cycle_id: int, *, section_name, section_approved
                 "VALUES (?, 'section_approved', ?, ?, ?)",
                 (cycle_id, section_name, "advanced to pending_division", now),
             )
+        conn.commit()
+
+
+def mark_section_signature_embedded(cycle_id: int):
+    """Set once inject_section_signature has actually run and been saved
+    to disk — the final-approval step checks this before deciding whether
+    it needs to (re-)embed the section block itself, so a signature image
+    never gets added twice (which would show as two stacked images, not
+    a replacement — add_image doesn't overwrite)."""
+    with get_conn() as conn:
+        now = _now()
+        conn.execute(
+            "UPDATE approval_cycles SET section_signed_at = ?, updated_at = ? WHERE id = ?",
+            (now, now, cycle_id),
+        )
         conn.commit()
 
 

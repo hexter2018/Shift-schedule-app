@@ -1,27 +1,35 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import * as Tabs from "@radix-ui/react-tabs";
+import Button from "./components/ui/Button";
 import { storage } from "./lib/storage";
 import {
   THAI_MONTHS, PREV_TAIL_DAYS, RECENT_WINDOW_DAYS,
-  PATTERN_KEY, HOLIDAY_KEY, ROTATION_KEY,
   uid, defaultState, ensureBuiltinCodes, defaultHolidays,
-  storageKey, patternKeyFor, daysInMonth, nextMonthOf, prevMonthOf,
+  storageKey, patternKey, holidayKey, rotationKey, patternKeyFor, daysInMonth, nextMonthOf, prevMonthOf,
   parseCellValue, detectCycle, phaseValue,
   applyHolidayOverridesForMonth, applyGroupRotationsForMonth, fixThreeShiftGaps,
 } from "./lib/logic";
 import { exportExcel } from "./lib/excel";
+import { parseScheduleWorkbook } from "./lib/excelImport";
 import { downloadPDF } from "./lib/pdf";
-import { submitForApproval, getApprovalStatus, LOCKED_STATUSES } from "./lib/approvals";
+import { LOCKED_STATUSES } from "./lib/approvals";
+import { useApprovalStatus } from "./lib/useApprovalStatus";
+import { getToken, getStoredUser, logout } from "./lib/auth";
+import { listMyDepartments } from "./lib/departments";
 
-import Toolbar from "./components/Toolbar";
-import ShiftCodeLegend from "./components/ShiftCodeLegend";
-import HolidayPanel from "./components/HolidayPanel";
-import GroupRotationPanel from "./components/GroupRotationPanel";
-import GapFixPanel from "./components/GapFixPanel";
-import CoverageList from "./components/CoverageList";
-import PatternList from "./components/PatternList";
+import LoginPage from "./components/LoginPage";
+import DepartmentPicker from "./components/DepartmentPicker";
+import AuthBrandPanel from "./components/AuthBrandPanel";
+
+import TopBar from "./components/TopBar";
+import ScheduleSubToolbar from "./components/ScheduleSubToolbar";
+import SetupWorkspace from "./components/SetupWorkspace";
+import ApprovalDrawer from "./components/ApprovalDrawer";
 import ScheduleTable from "./components/ScheduleTable";
-import ApprovalPanel from "./components/ApprovalPanel";
+import DashboardOverview from "./components/DashboardOverview";
 import Banner from "./components/ui/Banner";
+import ScheduleReview from "./components/ScheduleReview";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 function useTheme(){
   const [dark, setDark] = useState(()=>{
@@ -35,7 +43,7 @@ function useTheme(){
   return [dark, ()=>setDark(d=>!d)];
 }
 
-export default function App(){
+function ScheduleApp({ department, onSwitchDepartment }){
   // A single mutable store mirrors the original tool's module-global
   // variables (state / patternLib / holidays / groupRotations /
   // manualVacated / prevTail). Every mutation function below mutates this
@@ -62,80 +70,42 @@ export default function App(){
   const [statusMsg, setStatusMsg] = useState("");
   const [analyzeMonthsBack, setAnalyzeMonthsBack] = useState(3);
   const [gapFixResult, setGapFixResult] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false);
+  const [focusTarget, setFocusTarget] = useState(null);
+  const bulkUndoRef = useRef(null);
+  const [bulkUndoAvailable, setBulkUndoAvailable] = useState(false);
   const saveTimerRef = useRef(null);
   const captureRef = useRef(null);
 
   /* ---------- approval workflow ---------- */
-  const [approvalStatus, setApprovalStatus] = useState(null);
-  const [approvalLoading, setApprovalLoading] = useState(true);
-  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
-  const [approvalSubmitError, setApprovalSubmitError] = useState(null);
-
-  // Reads the *current* schedule key off the store ref rather than a prop —
-  // this gets called from month-switch handlers where the ref has already
-  // moved on to the new month by the time this runs, and from a polling
-  // interval that must always check whatever month is currently showing,
-  // not whatever month was showing when the interval was created.
-  const refreshApprovalStatus = useCallback(async ()=>{
-    if(!store.current.state) return;
-    const key = storageKey(store.current.state.month, store.current.state.yearBE);
-    try{
-      const status = await getApprovalStatus(key);
-      setApprovalStatus(status);
-    }catch(err){
-      console.error(err);
-    }finally{
-      setApprovalLoading(false);
-    }
-  }, []);
-
-  const onSubmitApproval = useCallback(async (sectionManagerEmail, divisionManagerEmail)=>{
-    const key = storageKey(store.current.state.month, store.current.state.yearBE);
-    setApprovalSubmitting(true);
-    setApprovalSubmitError(null);
-    try{
-      await submitForApproval(key, { sectionManagerEmail, divisionManagerEmail });
-      await refreshApprovalStatus();
-    }catch(err){
-      setApprovalSubmitError(err.message);
-    }finally{
-      setApprovalSubmitting(false);
-    }
-  }, [refreshApprovalStatus]);
-
-  // Poll periodically while mounted — a manager approving over email
-  // happens completely outside this browser session, so the only way to
-  // notice is to keep checking. 15s keeps the banner reasonably live
-  // without hammering the backend.
-  useEffect(()=>{
-    if(!ready) return;
-    refreshApprovalStatus();
-    const interval = setInterval(refreshApprovalStatus, 15000);
-    return ()=> clearInterval(interval);
-  }, [ready, refreshApprovalStatus]);
+  const {
+    approvalStatus, approvalLoading, approvalSubmitting, approvalSubmitError,
+    refreshApprovalStatus, onSubmitApproval,
+  } = useApprovalStatus({ store, department, ready });
 
   const locked = !!(approvalStatus && LOCKED_STATUSES.has(approvalStatus.status));
 
   /* ---------- persistence (mirrors loadState/saveState/loadPatternLib/etc.) ---------- */
   const loadStateFor = useCallback(async (month, yearBE)=>{
-    const key = storageKey(month, yearBE);
+    const key = storageKey(department.slug, month, yearBE);
     try{
       const res = await storage.get(key);
       if(res && res.value) return JSON.parse(res.value);
     }catch(err){ /* not found or error */ }
     return null;
-  }, []);
+  }, [department]);
 
   const saveState = useCallback(async ()=>{
     try{
-      const key = storageKey(store.current.state.month, store.current.state.yearBE);
+      const key = storageKey(department.slug, store.current.state.month, store.current.state.yearBE);
       await storage.set(key, JSON.stringify(store.current.state));
       setStatusMsg("บันทึกแล้ว");
     }catch(err){
       setStatusMsg("บันทึกไม่สำเร็จ");
       console.error(err);
     }
-  }, []);
+  }, [department]);
 
   const scheduleSave = useCallback(()=>{
     setStatusMsg("กำลังแก้ไข…");
@@ -144,17 +114,17 @@ export default function App(){
   }, [saveState]);
 
   const savePatternLib = useCallback(async ()=>{
-    try{ await storage.set(PATTERN_KEY, JSON.stringify(store.current.patternLib)); }
+    try{ await storage.set(patternKey(department.slug), JSON.stringify(store.current.patternLib)); }
     catch(err){ console.error(err); }
-  }, []);
+  }, [department]);
   const saveHolidays = useCallback(async ()=>{
-    try{ await storage.set(HOLIDAY_KEY, JSON.stringify(store.current.holidays)); }
+    try{ await storage.set(holidayKey(department.slug), JSON.stringify(store.current.holidays)); }
     catch(err){ console.error(err); }
-  }, []);
+  }, [department]);
   const saveGroupRotations = useCallback(async ()=>{
-    try{ await storage.set(ROTATION_KEY, JSON.stringify(store.current.groupRotations)); }
+    try{ await storage.set(rotationKey(department.slug), JSON.stringify(store.current.groupRotations)); }
     catch(err){ console.error(err); }
-  }, []);
+  }, [department]);
 
   const loadPrevMonthTail = useCallback(async ()=>{
     const s = store.current;
@@ -187,11 +157,11 @@ export default function App(){
     initRanRef.current = true;
     (async ()=>{
       const s = store.current;
-      try{ const res = await storage.get(PATTERN_KEY); if(res && res.value) s.patternLib = JSON.parse(res.value); }
+      try{ const res = await storage.get(patternKey(department.slug)); if(res && res.value) s.patternLib = JSON.parse(res.value); }
       catch(err){ s.patternLib = {}; }
-      try{ const res = await storage.get(HOLIDAY_KEY); if(res && res.value) s.holidays = JSON.parse(res.value); }
+      try{ const res = await storage.get(holidayKey(department.slug)); if(res && res.value) s.holidays = JSON.parse(res.value); }
       catch(err){ s.holidays = []; }
-      try{ const res = await storage.get(ROTATION_KEY); if(res && res.value) s.groupRotations = JSON.parse(res.value); }
+      try{ const res = await storage.get(rotationKey(department.slug)); if(res && res.value) s.groupRotations = JSON.parse(res.value); }
       catch(err){ s.groupRotations = {}; }
 
       const initial = defaultState();
@@ -246,6 +216,7 @@ export default function App(){
     store.current.state.shiftCodes.push({code:"NEW", start:"", end:"", color:"#57534e"});
     bump(); scheduleSave();
   };
+  const onChangeModifierColor = (key, value)=>{ store.current.state[key] = value; bump(); scheduleSave(); };
 
   /* ---------- holidays ---------- */
   const runHolidayOverrides = useCallback((prefix)=>{
@@ -266,13 +237,12 @@ export default function App(){
   const onAddHoliday = (dateVal, nameVal, recurring)=>{
     const [y, m, d] = dateVal.split("-").map(Number);
     const yearBE = y + 543;
-    store.current.holidays.push({id:uid(), month:m, day:d, year: recurring ? null : yearBE, name:nameVal});
+    store.current.holidays = [...store.current.holidays, {id:uid(), month:m, day:d, year: recurring ? null : yearBE, name:nameVal}];
     saveHolidays();
     runHolidayOverrides("เพิ่มวันหยุดแล้ว —");
   };
   const onRenameHoliday = (id, name)=>{
-    const h = store.current.holidays.find(x=>x.id===id);
-    if(h) h.name = name;
+    store.current.holidays = store.current.holidays.map(h=> h.id===id ? {...h, name} : h);
     saveHolidays(); bump();
   };
   const onRemoveHoliday = (id)=>{
@@ -281,10 +251,8 @@ export default function App(){
   };
   const onLoadDefaults = ()=>{
     const existing = new Set(store.current.holidays.map(h=>`${h.month}-${h.day}-${h.year||"r"}`));
-    defaultHolidays().forEach(h=>{
-      const sig = `${h.month}-${h.day}-r`;
-      if(!existing.has(sig)) store.current.holidays.push(h);
-    });
+    const toAdd = defaultHolidays().filter(h=>!existing.has(`${h.month}-${h.day}-r`));
+    store.current.holidays = [...store.current.holidays, ...toAdd];
     saveHolidays();
     runHolidayOverrides("โหลดวันหยุดราชการทั่วไปแล้ว —");
   };
@@ -552,25 +520,116 @@ export default function App(){
     if(emp.rotationFlags) delete emp.rotationFlags[day];
     bump(); scheduleSave();
   };
+  const onBulkAction = (action, items, value)=>{
+    if(!items?.length) return;
+    const snapshot = items.map(({empId, day})=>{
+      const emp = store.current.state.employees.find(e=>e.id===empId);
+      return {
+        empId, day,
+        value: emp?.days?.[day] || "",
+        autoFlag: emp?.autoFlags?.[day],
+        rotationFlag: emp?.rotationFlags?.[day],
+      };
+    }).filter(x=>x.empId);
+    bulkUndoRef.current = snapshot;
+    setBulkUndoAvailable(true);
+    snapshot.forEach(({empId, day})=>{
+      const emp = store.current.state.employees.find(e=>e.id===empId);
+      if(!emp) return;
+      if(action === "set-shift") {
+        emp.days[day] = String(value || "").trim().toUpperCase();
+        delete emp.autoFlags[day];
+        if(emp.rotationFlags) delete emp.rotationFlags[day];
+      } else if(action === "clear") {
+        emp.days[day] = "";
+        delete emp.autoFlags[day];
+        if(emp.rotationFlags) delete emp.rotationFlags[day];
+      } else if(action === "review") {
+        delete emp.autoFlags[day];
+      }
+    });
+    const labels = {"set-shift":`เปลี่ยนกะ ${snapshot.length} ช่องแล้ว`, clear:`ล้างกะ ${snapshot.length} ช่องแล้ว`, review:`ทำเครื่องหมายตรวจแล้ว ${snapshot.length} ช่อง`};
+    setStatusMsg(labels[action] || "แก้ไขหลายช่องแล้ว");
+    bump(); scheduleSave();
+  };
+  const onUndoBulk = ()=>{
+    const snapshot = bulkUndoRef.current;
+    if(!snapshot?.length) return;
+    snapshot.forEach(({empId, day, value, autoFlag, rotationFlag})=>{
+      const emp = store.current.state.employees.find(e=>e.id===empId);
+      if(!emp) return;
+      emp.days[day] = value;
+      if(autoFlag) emp.autoFlags[day] = autoFlag; else delete emp.autoFlags[day];
+      if(!emp.rotationFlags) emp.rotationFlags = {};
+      if(rotationFlag) emp.rotationFlags[day] = rotationFlag; else delete emp.rotationFlags[day];
+    });
+    bulkUndoRef.current = null;
+    setBulkUndoAvailable(false);
+    setStatusMsg("ย้อนกลับการแก้ไขหลายช่องแล้ว");
+    bump(); scheduleSave();
+  };
   const onEmployeeField = (empId, field, value)=>{
     const emp = store.current.state.employees.find(e=>e.id===empId);
     if(!emp) return;
     emp[field] = value;
     bump(); scheduleSave();
   };
+  const onChangeCellColor = (empId, day, color)=>{
+    // A manual highlight, independent of the shift code in emp.days[day] —
+    // never touches that field, only this separate per-day color map.
+    const emp = store.current.state.employees.find(e=>e.id===empId);
+    if(!emp) return;
+    if(!emp.cellColors) emp.cellColors = {};
+    if(color) emp.cellColors[day] = color;
+    else delete emp.cellColors[day];
+    bump(); scheduleSave();
+  };
+  const onChangeNoteColor = (empId, color)=>{
+    // Same idea as onChangeCellColor, but the note column is one field per
+    // employee (not per-day), so it's a plain property, not a day-keyed map.
+    const emp = store.current.state.employees.find(e=>e.id===empId);
+    if(!emp) return;
+    if(color) emp.noteColor = color;
+    else delete emp.noteColor;
+    bump(); scheduleSave();
+  };
   const onRemoveEmployee = (empId)=>{
+    const emp = store.current.state.employees.find(x=>x.id===empId);
+    if(!emp) return;
+    const label = emp.name || emp.empCode || "พนักงานนี้";
+    if(!window.confirm(`ลบ ${label} ออกจากตารางเดือนนี้หรือไม่?\n\nการลบจะเอาข้อมูลกะของพนักงานคนนี้ออกจากตารางด้วย`)) return;
     store.current.state.employees = store.current.state.employees.filter(x=>x.id!==empId);
     bump(); scheduleSave();
   };
 
   /* ---------- export ---------- */
-  const onDownloadExcel = ()=>{
+  const onDownloadExcel = async ()=>{
+    setStatusMsg("กำลังสร้างไฟล์ Excel...");
     try{
-      exportExcel(store.current.state, store.current.holidays);
+      await exportExcel(store.current.state, store.current.holidays);
       setStatusMsg("ดาวน์โหลด Excel แล้ว");
     }catch(err){
       console.error(err);
       setStatusMsg("สร้างไฟล์ Excel ไม่สำเร็จ");
+    }
+  };
+  const onImportExcel = async (file)=>{
+    if(!window.confirm(
+      "นำเข้าไฟล์นี้จะแทนที่ข้อมูลตารางกะปัจจุบันทั้งหมด (พนักงาน, กะที่กรอกไว้, รหัสกะ) — ยืนยันหรือไม่?"
+    )) return;
+    setStatusMsg("กำลังนำเข้า...");
+    try{
+      const { state: imported, warnings } = await parseScheduleWorkbook(file);
+      ensureBuiltinCodes(imported);
+      store.current.state = imported;
+      bump();
+      await saveState();
+      setStatusMsg(warnings.length ? "นำเข้าสำเร็จ (มีจุดต้องตรวจสอบ)" : "นำเข้าสำเร็จ");
+      if(warnings.length) window.alert(warnings.join("\n\n"));
+    }catch(err){
+      console.error(err);
+      setStatusMsg("นำเข้าไม่สำเร็จ");
+      window.alert(err.message || "นำเข้าไฟล์ไม่สำเร็จ — ตรวจสอบว่าเป็นไฟล์ที่ระบบนี้สร้างไว้จริง");
     }
   };
   const onDownloadPdf = async ()=>{
@@ -586,6 +645,14 @@ export default function App(){
   };
   const onPrint = ()=> window.print();
 
+  // Keep every hook before any conditional return. React requires the hook
+  // order to be identical on the loading render and subsequent renders.
+  const focusIssue = useCallback((issue)=>{
+    if(!issue?.empId || !issue?.day) { setActiveTab("schedule"); return; }
+    setFocusTarget({empId: issue.empId, day: issue.day, token: Date.now()});
+    setActiveTab("schedule");
+  }, []);
+
   if(!ready || !store.current.state){
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas">
@@ -599,89 +666,235 @@ export default function App(){
 
   const s = store.current;
 
+  // Same computation CoverageList makes internally (count of LA cells that
+  // still need someone assigned) — surfaced here too so the insights badge
+  // has a number without duplicating CoverageList's own logic/props.
+  const nd = daysInMonth(s.state.yearBE, s.state.month);
+  let coverageCount = 0;
+  s.state.employees.forEach(emp=>{
+    for(let d=1; d<=nd; d++){
+      if((emp.days[d]||"").trim().toUpperCase() === "LA") coverageCount++;
+    }
+  });
+
+  // Phase 4 — deterministic pre-submission review. Only objective data
+  // quality issues block submission; predicted/leave/OT items are attention
+  // items so the manager can review them without being prevented from using
+  // the existing approval workflow.
+  const reviewIssues = [];
+  const knownCodes = new Set(s.state.shiftCodes.map(c=>String(c.code).toUpperCase()));
+  s.state.employees.forEach(emp=>{
+    for(let d=1; d<=nd; d++){
+      const raw = (emp.days[d] || "").trim().toUpperCase();
+      if(!raw) continue;
+      const base = raw.replace(/(OT|TH|WH)$/i, "");
+      if(base !== "LA" && base !== "O" && !knownCodes.has(base)){
+        reviewIssues.push({
+          id:`invalid-${emp.id}-${d}`, level:"blocking", empId:emp.id, day:d,
+          title:`${emp.name || emp.empCode || "ไม่ระบุพนักงาน"} · วันที่ ${d}`,
+          detail:`พบรหัสกะ “${base}” ซึ่งไม่มีอยู่ใน Master รหัสกะ`
+        });
+      }
+      if(emp.autoFlags?.[d]){
+        reviewIssues.push({
+          id:`predicted-${emp.id}-${d}`, level:"attention", empId:emp.id, day:d,
+          title:`${emp.name || emp.empCode || "ไม่ระบุพนักงาน"} · วันที่ ${d}`,
+          detail:`กะ ${raw} เป็นค่าที่ระบบคาดการณ์จาก pattern — ควรตรวจสอบก่อนส่งอนุมัติ`
+        });
+      }
+    }
+  });
+  // Avoid presenting a large OT list as individual errors; surface it as a
+  // single review item because OT is valid data, not a validation failure.
+  let otCells = 0;
+  s.state.employees.forEach(emp=>Object.values(emp.days || {}).forEach(v=>{ if(/OT$/i.test(String(v).trim())) otCells++; }));
+  if(otCells > 0){
+    reviewIssues.push({id:"ot-summary", level:"attention", title:`พบ OT ${otCells} ช่อง`, detail:"ตรวจสอบความเหมาะสมของ OT และการจัดคนก่อนส่งอนุมัติ"});
+  }
+
+  const recheckReview = ()=>bump();
+
   return (
-    <div className="min-h-screen bg-canvas">
+    <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-canvas flex flex-col">
       <div style={locked ? {pointerEvents:"none", opacity:0.55, position:"relative"} : undefined}>
-        <Toolbar
+        <TopBar
           state={s.state} statusMsg={statusMsg}
-          analyzeMonthsBack={analyzeMonthsBack} setAnalyzeMonthsBack={setAnalyzeMonthsBack}
           onDeptChange={onDeptChange} onMonthChange={onMonthChange} onYearChange={onYearChange}
-          onAddEmployee={addEmployee} onSave={saveState}
-          onDownloadPdf={onDownloadPdf} onDownloadExcel={onDownloadExcel} onPrint={onPrint}
-          onAnalyze={analyzePatterns} onGenerateNext={generateNextMonth} onMarkReviewed={markAllReviewed}
+          onSave={saveState}
           dark={dark} onToggleDark={toggleDark}
+          departmentName={department.name} onSwitchDepartment={onSwitchDepartment}
+          insightsCount={coverageCount}
+          insightsProps={{
+            state: s.state, patternLib: s.patternLib, manualVacated: s.manualVacated,
+            onUseVacated, onAssignOt: assignOt, onClearPattern,
+          }}
+          onOpenApproval={()=>setApprovalDrawerOpen(true)}
         />
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 space-y-6 animate-fade-up">
-        <div className="flex items-baseline justify-between gap-4">
-          <div>
-            <h1 className="font-sans text-lg sm:text-xl font-semibold tracking-tight bg-gradient-to-r from-primary to-primary-bright bg-clip-text text-transparent">
-              ตารางปฏิบัติงานประจำเดือน
-            </h1>
-            <p className="mt-0.5 text-[13px] font-sans text-ink-faint">
-              กรอกตารางเดือนแรกให้ครบถ้วน ให้ระบบวิเคราะห์รูปแบบการหมุนกะ แล้วสร้างเดือนถัดไปได้อัตโนมัติ
-            </p>
-          </div>
-        </div>
 
-        <ApprovalPanel
-          scheduleKey={storageKey(s.state.month, s.state.yearBE)}
-          status={approvalStatus} loading={approvalLoading}
-          onSubmit={onSubmitApproval} submitting={approvalSubmitting} submitError={approvalSubmitError}
-        />
-
-        {s.state.autoGenerated && (
+      {s.state.autoGenerated && (
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
           <Banner tone="warning" icon="⚠️" className="no-print">
             ตารางเดือนนี้สร้างจากรูปแบบของเดือนก่อนหน้าโดยอัตโนมัติ กรุณาตรวจสอบวันลา วันหยุดตามประเพณี และการเปลี่ยนแปลงอื่น ๆ
             (จุดสีส้มบนช่องที่ยังไม่ได้ตรวจสอบ)
           </Banner>
-        )}
+        </div>
+      )}
 
-        <div style={locked ? {pointerEvents:"none", opacity:0.55, position:"relative"} : undefined}>
-          <div className="space-y-6">
-            {/* Settings/configuration — 2-column grid instead of a long
-                vertical stack. These four panels each have their own wide
-                internal rows (the per-group rotation detail row
-                especially), so at lg (1024px) inside a 1280px-capped
-                container each column lands around ~590px after gap/padding
-                — narrow enough that GroupRotationPanel's row will wrap
-                onto more lines than it did in the wider layout. It stays
-                usable (everything flex-wraps, nothing clips/overflows),
-                just visually busier — worth knowing if that panel looks
-                more cramped than the rest. */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <ShiftCodeLegend state={s.state} onChangeCode={onChangeCode} onRemoveCode={onRemoveCode} onAddCode={onAddCode} />
-              <HolidayPanel
-                holidays={s.holidays}
-                onAddHoliday={onAddHoliday} onRenameHoliday={onRenameHoliday} onRemoveHoliday={onRemoveHoliday}
-                onLoadDefaults={onLoadDefaults} onApplyHolidays={onApplyHolidays}
-              />
-              <GroupRotationPanel
-                state={s.state} groupRotations={s.groupRotations}
-                onAddGroup={onAddGroup} onRenameGroup={onRenameGroup} onUpdateGroup={onUpdateGroup}
-                onRemoveGroup={onRemoveGroup} onToggleMember={onToggleMember} onQuickAdd={onQuickAdd}
-                onApplyRotation={onApplyRotation}
-              />
-              <GapFixPanel onFixGaps={onFixGaps} gapFixResult={gapFixResult} onAssignOtFromGap={onAssignOtFromGap} />
-            </div>
+      <div style={locked ? {pointerEvents:"none", opacity:0.55, position:"relative"} : undefined} className="flex-1 flex flex-col">
+        <Tabs.Content value="overview" className="flex-1">
+          <DashboardOverview
+            state={s.state}
+            holidays={s.holidays}
+            approvalStatus={approvalStatus}
+            onOpenRoster={()=>setActiveTab("schedule")}
+            onOpenApproval={()=>setApprovalDrawerOpen(true)}
+            onFocusIssue={focusIssue}
+          />
+        </Tabs.Content>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <CoverageList
-                state={s.state} patternLib={s.patternLib} manualVacated={s.manualVacated}
-                onUseVacated={onUseVacated} onAssignOt={assignOt}
-              />
-              <PatternList patternLib={s.patternLib} onClearPattern={onClearPattern} />
-            </div>
-
+        <Tabs.Content value="schedule" className="flex-1 flex flex-col">
+          <ScheduleSubToolbar
+            analyzeMonthsBack={analyzeMonthsBack} setAnalyzeMonthsBack={setAnalyzeMonthsBack}
+            onAddEmployee={addEmployee}
+            onDownloadPdf={onDownloadPdf} onDownloadExcel={onDownloadExcel} onPrint={onPrint}
+            onImportExcel={onImportExcel}
+            onAnalyze={analyzePatterns} onGenerateNext={generateNextMonth} onMarkReviewed={markAllReviewed}
+          />
+          <div className="w-full px-3 sm:px-4 lg:px-6 py-3">
             <ScheduleTable
               state={s.state} holidays={s.holidays} patternLib={s.patternLib} prevTail={s.prevTail}
               onChangeDay={onChangeDay} onEmployeeField={onEmployeeField}
               onRemoveEmployee={onRemoveEmployee} onAddEmployee={addEmployee}
+              onChangeCode={onChangeCode} onChangeModifierColor={onChangeModifierColor}
+              onChangeCellColor={onChangeCellColor} onChangeNoteColor={onChangeNoteColor}
               captureRef={captureRef}
+              focusTarget={focusTarget}
+              onBulkAction={onBulkAction} onUndoBulk={onUndoBulk} bulkUndoAvailable={bulkUndoAvailable}
             />
+          </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="setup">
+          <SetupWorkspace
+            state={s.state} holidays={s.holidays} groupRotations={s.groupRotations} gapFixResult={gapFixResult}
+            onChangeCode={onChangeCode} onRemoveCode={onRemoveCode} onAddCode={onAddCode}
+            onChangeModifierColor={onChangeModifierColor}
+            onAddHoliday={onAddHoliday} onRenameHoliday={onRenameHoliday} onRemoveHoliday={onRemoveHoliday}
+            onLoadDefaults={onLoadDefaults} onApplyHolidays={onApplyHolidays}
+            onAddGroup={onAddGroup} onRenameGroup={onRenameGroup} onUpdateGroup={onUpdateGroup}
+            onRemoveGroup={onRemoveGroup} onToggleMember={onToggleMember} onQuickAdd={onQuickAdd}
+            onApplyRotation={onApplyRotation}
+            onFixGaps={onFixGaps} onAssignOtFromGap={onAssignOtFromGap}
+          />
+        </Tabs.Content>
+      </div>
+
+      <ApprovalDrawer
+        open={approvalDrawerOpen} onOpenChange={setApprovalDrawerOpen}
+        scheduleKey={storageKey(department.slug, s.state.month, s.state.yearBE)}
+        status={approvalStatus} loading={approvalLoading}
+        onSubmit={onSubmitApproval} submitting={approvalSubmitting} submitError={approvalSubmitError}
+        reviewContent={<ScheduleReview issues={reviewIssues} onRecheck={recheckReview} onBackToRoster={()=>{ setApprovalDrawerOpen(false); setActiveTab("schedule"); }} />}
+        reviewBlockingCount={reviewIssues.filter(x=>x.level === "blocking").length}
+      />
+    </Tabs.Root>
+  );
+}
+
+const SELECTED_DEPT_KEY = "selected-department-v1";
+
+export default function App(){
+  const [authed, setAuthed] = useState(!!getToken());
+
+  useEffect(()=>{
+    const onLogout = ()=> setAuthed(false);
+    window.addEventListener("auth:logout", onLogout);
+    return ()=> window.removeEventListener("auth:logout", onLogout);
+  }, []);
+  const [departments, setDepartments] = useState(null); // null = not loaded yet
+  const [department, setDepartment] = useState(()=>{
+    try{
+      const raw = localStorage.getItem(SELECTED_DEPT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch{ return null; }
+  });
+  const [deptError, setDeptError] = useState("");
+
+  const [deptRetry, setDeptRetry] = useState(0);
+
+  useEffect(()=>{
+    if(!authed) return;
+    let cancelled = false;
+    setDeptError("");
+    listMyDepartments()
+      .then(list=>{
+        if(cancelled) return;
+        setDepartments(list);
+        // The previously-selected department might no longer be valid
+        // (removed as a member, or it never really existed on this
+        // account) — re-validate against the real list rather than
+        // trusting whatever's cached in localStorage.
+        if(department && !list.some(d=>d.slug === department.slug)){
+          setDepartment(null);
+          localStorage.removeItem(SELECTED_DEPT_KEY);
+        }
+      })
+      .catch(err=> setDeptError(err.message || "โหลดรายชื่อหน่วยงานไม่สำเร็จ"));
+    return ()=>{ cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, deptRetry]);
+
+  if(!authed){
+    return <LoginPage onSignedIn={()=>setAuthed(true)} />;
+  }
+
+  if(departments === null){
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
+        <div className="w-full max-w-[880px] flex items-stretch rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.08),0_16px_40px_-8px_rgba(15,23,42,0.18)]">
+          <div className="hidden lg:flex"><AuthBrandPanel /></div>
+          <div className="flex-1 flex items-center justify-center px-6 py-16 bg-white dark:bg-surface">
+            {deptError ? (
+              <div className="flex flex-col items-center gap-3 animate-fade-in max-w-[320px] text-center">
+                <p className="font-sans text-[13px] text-danger">{deptError}</p>
+                <Button variant="secondary" size="sm" onClick={()=>{ setDeptError(""); setDeptRetry(n=>n+1); }}>
+                  ลองใหม่
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 animate-fade-in">
+                <span className="h-7 w-7 rounded-full border-2 border-line border-t-primary animate-spin" />
+                <span className="font-sans text-sm text-ink-faint">กำลังโหลด…</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if(!department){
+    return (
+      <DepartmentPicker
+        departments={departments}
+        onPick={d=>{
+          setDepartment(d);
+          localStorage.setItem(SELECTED_DEPT_KEY, JSON.stringify(d));
+        }}
+        onCreated={d=>{
+          setDepartments(prev=>[...prev, d]);
+          setDepartment(d);
+          localStorage.setItem(SELECTED_DEPT_KEY, JSON.stringify(d));
+        }}
+      />
+    );
+  }
+
+  return <AppErrorBoundary>
+    <ScheduleApp key={department.slug} department={department} onSwitchDepartment={()=>{
+    setDepartment(null);
+    localStorage.removeItem(SELECTED_DEPT_KEY);
+  }} />
+  </AppErrorBoundary>;
 }

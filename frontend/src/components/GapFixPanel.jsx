@@ -1,6 +1,7 @@
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
+import { IconTool } from "./ui/Icon";
 
 export default function GapFixPanel({ onFixGaps, gapFixResult, onAssignOtFromGap }){
   const { log } = gapFixResult || {};
@@ -16,7 +17,7 @@ export default function GapFixPanel({ onFixGaps, gapFixResult, onAssignOtFromGap
           </Tooltip>
         </span>
       }
-      action={<Button variant="tinted" size="sm" onClick={onFixGaps}>🔧 ตรวจสอบและปรับกะที่ขาด</Button>}
+      action={<Button variant="tinted" size="sm" onClick={onFixGaps}><IconTool size={13} />ตรวจสอบและปรับกะที่ขาด</Button>}
     >
       <div className="flex flex-col gap-2">
         {log && log.length===0 && (

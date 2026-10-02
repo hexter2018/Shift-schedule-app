@@ -1,7 +1,7 @@
 const VARIANTS = {
-  primary: "bg-gradient-to-b from-primary-bright to-primary text-white hover:brightness-110 shadow-sm shadow-primary/25",
-  secondary: "bg-white dark:bg-surface text-ink ring-1 ring-inset ring-line hover:ring-ink-faint shadow-sm shadow-black/[0.03] dark:shadow-black/20",
-  tinted: "bg-primary-soft text-primary hover:bg-primary/10",
+  primary: "bg-primary text-white hover:bg-primary-hover",
+  secondary: "bg-white dark:bg-surface text-ink ring-1 ring-inset ring-line hover:bg-canvas dark:hover:bg-white/[0.04]",
+  tinted: "bg-primary-soft text-primary hover:bg-primary/15",
   ghost: "bg-transparent text-ink-soft hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-ink",
   "danger-ghost": "bg-transparent text-danger hover:bg-danger-soft",
 };
@@ -18,7 +18,7 @@ export default function Button({
     <button
       className={[
         "inline-flex items-center justify-center rounded-md font-medium font-sans",
-        "transition-[background-color,box-shadow,filter,transform] duration-150 whitespace-nowrap",
+        "transition-colors duration-100 whitespace-nowrap",
         "active:scale-[0.97]",
         "disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:hover:bg-transparent",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",

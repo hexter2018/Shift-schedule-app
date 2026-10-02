@@ -1,8 +1,9 @@
 // Talks to the approval-workflow endpoints added in backend/approvals.py.
 import { API_BASE_URL } from "./storage";
+import { authFetch } from "./auth";
 
 export async function submitForApproval(scheduleKey, { sectionManagerEmail, divisionManagerEmail, createdBy }){
-  const res = await fetch(`${API_BASE_URL}/api/schedules/${encodeURIComponent(scheduleKey)}/submit`, {
+  const res = await authFetch(`/api/schedules/${encodeURIComponent(scheduleKey)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sectionManagerEmail, divisionManagerEmail, createdBy }),
@@ -16,12 +17,16 @@ export async function submitForApproval(scheduleKey, { sectionManagerEmail, divi
 }
 
 export async function getApprovalStatus(scheduleKey){
-  const res = await fetch(`${API_BASE_URL}/api/schedules/${encodeURIComponent(scheduleKey)}/approval-status`);
+  const res = await authFetch(`/api/schedules/${encodeURIComponent(scheduleKey)}/approval-status`);
   if(!res.ok) throw new Error(`approval-status failed: HTTP ${res.status}`);
   return res.json();
 }
 
 export function approvedFileUrl(scheduleKey){
+  // Plain link (used as an <a href>, not a fetch call) — not yet routed
+  // through authFetch, so this download isn't gated by login. Same
+  // "internal network only" trust boundary as the rest of this app for
+  // now; revisit if that boundary ever changes.
   return `${API_BASE_URL}/api/schedules/${encodeURIComponent(scheduleKey)}/approved-file`;
 }
 

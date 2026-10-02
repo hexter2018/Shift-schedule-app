@@ -2,9 +2,10 @@ import { THAI_MONTHS, THAI_WEEKDAYS, patternKeyFor, rotationPairForGroup } from 
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
-import { inputClass } from "./ui/Field";
+import { inputClass, selectClass } from "./ui/Field";
+import { IconPlus, IconRefresh } from "./ui/Icon";
 
-const selCls = inputClass + " h-7 w-auto px-2 text-[13px]";
+const selCls = selectClass + " h-7 w-auto pl-2 pr-7 text-[13px]";
 const numCls = inputClass + " h-7 px-2 text-[13px]";
 
 export default function GroupRotationPanel({
@@ -30,9 +31,9 @@ export default function GroupRotationPanel({
       }
       action={
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onAddGroup}>+ เพิ่มกลุ่ม</Button>
+          <Button variant="secondary" size="sm" onClick={onAddGroup}><IconPlus size={13} />เพิ่มกลุ่ม</Button>
           <Button variant="tinted" size="sm" onClick={onApplyRotation} title="เติม WH ให้ตรงกับวันหยุดหมุนเวียนของเดือนที่กำลังดูอยู่">
-            🔁 ใช้กับเดือนนี้
+            <IconRefresh size={13} />ใช้กับเดือนนี้
           </Button>
         </div>
       }

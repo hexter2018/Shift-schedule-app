@@ -1,0 +1,7 @@
+# Install alongside requirements.txt for local development / CI:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Run the test suite from the backend/ directory:
+#   pytest tests/ -v
+pytest==8.3.3
+httpx==0.27.2

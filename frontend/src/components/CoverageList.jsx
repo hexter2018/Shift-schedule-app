@@ -5,7 +5,7 @@ import {
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
-import { inputClass } from "./ui/Field";
+import { selectClass } from "./ui/Field";
 
 function LeaveRowNoPattern({ emp, day, dateLabel, reason, pickableCodes, onUseVacated }){
   const [pick, setPick] = useState("");
@@ -14,7 +14,7 @@ function LeaveRowNoPattern({ emp, day, dateLabel, reason, pickableCodes, onUseVa
       <span className="font-semibold text-ink min-w-[160px]">{emp.name || emp.empCode}</span>
       <span className="text-ink-soft flex items-center gap-1.5 flex-wrap">
         {dateLabel} — ลา ({reason}) เลือกกะที่ต้องหาคนแทนเอง:
-        <select value={pick} onChange={e=>setPick(e.target.value)} className={inputClass + " h-7 w-28 text-[13px]"}>
+        <select value={pick} onChange={e=>setPick(e.target.value)} className={selectClass + " h-7 w-28 pr-7 text-[13px]"}>
           <option value="">-- เลือกกะ --</option>
           {pickableCodes.map(c=>(<option key={c.code} value={c.code}>{c.code}</option>))}
         </select>

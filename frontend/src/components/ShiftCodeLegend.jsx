@@ -1,8 +1,9 @@
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
+import { IconPlus } from "./ui/Icon";
 
-export default function ShiftCodeLegend({ state, onChangeCode, onRemoveCode, onAddCode }){
+export default function ShiftCodeLegend({ state, onChangeCode, onRemoveCode, onAddCode, onChangeModifierColor }){
   return (
     <Card noPrint
       title={
@@ -17,7 +18,7 @@ export default function ShiftCodeLegend({ state, onChangeCode, onRemoveCode, onA
           </Tooltip>
         </span>
       }
-      action={<Button variant="secondary" size="sm" onClick={onAddCode}>+ เพิ่มรหัสกะ</Button>}
+      action={<Button variant="secondary" size="sm" onClick={onAddCode}><IconPlus size={13} />เพิ่มรหัสกะ</Button>}
     >
       <div className="flex flex-wrap gap-2">
         {state.shiftCodes.map((c, i)=>(
@@ -36,6 +37,30 @@ export default function ShiftCodeLegend({ state, onChangeCode, onRemoveCode, onA
               className="text-ink-faint hover:text-danger text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity px-0.5">×</button>
           </div>
         ))}
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-line/70">
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-[12.5px] font-sans font-medium text-ink-soft">สีกรอบตัวปรับแต่งกะ</span>
+          <Tooltip width="20rem">
+            สีกรอบสำหรับ WH (วันหยุดประจำสัปดาห์) จะปรับตามสีของรหัสกะแต่ละตัวเองโดยอัตโนมัติ — ส่วน TH กับ OT
+            เป็นสีคงที่ทั้งตาราง ปรับได้ตรงนี้
+          </Tooltip>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-lg bg-canvas ring-1 ring-inset ring-line px-2.5 py-1.5">
+            <input type="color" value={state.otColor} onChange={e=>onChangeModifierColor("otColor", e.target.value)}
+              className="w-5 h-5 rounded-full border-0 p-0 cursor-pointer" style={{background:state.otColor}} />
+            <span className="text-[13.5px] font-sans text-ink">บังคับโอที (OT)</span>
+            <span className="inline-block w-8 h-5 rounded border-[1.5px]" style={{borderColor:state.otColor, borderStyle:"solid"}} />
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-canvas ring-1 ring-inset ring-line px-2.5 py-1.5">
+            <input type="color" value={state.thColor} onChange={e=>onChangeModifierColor("thColor", e.target.value)}
+              className="w-5 h-5 rounded-full border-0 p-0 cursor-pointer" style={{background:state.thColor}} />
+            <span className="text-[13.5px] font-sans text-ink">วันหยุดนักขัตฤกษ์ (TH)</span>
+            <span className="inline-block w-8 h-5 rounded border-[1.5px]" style={{borderColor:state.thColor, borderStyle:"dotted"}} />
+          </div>
+        </div>
       </div>
     </Card>
   );

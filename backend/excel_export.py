@@ -16,10 +16,17 @@ downloaded directly or produced via the approval flow.
 from dataclasses import dataclass, asdict
 from datetime import date, datetime
 import calendar
+import io
+import math
 
+from PIL import Image as PILImage, ImageChops
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU
 
 FONT_NAME = "TH Sarabun New"
 FONT_SIZE = 18
@@ -72,6 +79,18 @@ def argb(hex_color: str) -> str:
     """openpyxl wants 8-hex ARGB; without the FF alpha prefix colors render
     as fully transparent (bit us once already on the JS side)."""
     return "FF" + hex_color.lstrip("#").upper()
+
+
+def contrast_text(hex_color: str) -> str:
+    """Picks black or white, whichever stays readable against an arbitrary
+    background — used for a manually-picked cell highlight, which (unlike
+    a shift code's own tint-derived background) could be any color at
+    all, so the shift code's own text color can't be assumed to still
+    have enough contrast against it."""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return "0F172A" if luminance > 0.6 else "FFFFFF"
 
 
 @dataclass
@@ -171,6 +190,8 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
         name_cell.alignment = left
         for c in (1, 2):
             ws.cell(row=row, column=c).alignment = center
+        ot_color = state.get("otColor") or "#c2517d"
+        th_color = state.get("thColor") or "#b45050"
         for d in range(1, nd + 1):
             col = NUM_FIXED_COLS + d
             raw = (emp.get("days", {}).get(str(d)) or emp.get("days", {}).get(d) or "")
@@ -180,7 +201,11 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
             cell.alignment = center
             defn = shift_codes.get(base)
             if defn:
-                tint_amt = 0.55 if (parsed["wh"] or parsed["th"]) else 0.86
+                # 0.68 (not 0.55) matches the current web-table tint — this
+                # was out of sync with logic.js's styleForCell, so the
+                # generated/approved file's WH/TH cells read visibly more
+                # saturated than what the person actually saw on screen.
+                tint_amt = 0.68 if (parsed["wh"] or parsed["th"]) else 0.86
                 bg = tint_hex(defn["color"], tint_amt)
                 fg = defn["color"].lstrip("#").upper()
                 cell.font = Font(name=FONT_NAME, size=FONT_SIZE, bold=True, color=argb(fg))
@@ -188,9 +213,9 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
                 if parsed["wh"]:
                     s = Side(style="dashed", color=argb(fg)); cell.border = Border(top=s, bottom=s, left=s, right=s)
                 elif parsed["th"]:
-                    s = Side(style="dotted", color=argb("B91C1C")); cell.border = Border(top=s, bottom=s, left=s, right=s)
+                    s = Side(style="dotted", color=argb(th_color)); cell.border = Border(top=s, bottom=s, left=s, right=s)
                 elif parsed["ot"]:
-                    s = Side(style="medium", color=argb("DB2777")); cell.border = Border(top=s, bottom=s, left=s, right=s)
+                    s = Side(style="medium", color=argb(ot_color)); cell.border = Border(top=s, bottom=s, left=s, right=s)
                 else:
                     cell.border = all_sides
             elif base == "WH":
@@ -203,12 +228,27 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
                 hol = is_holiday(state["yearBE"], state["month"], d, holidays)
                 if hol:
                     cell.fill = PatternFill("solid", fgColor=argb("FDEAEA"))
+            # A manual highlight (right-click on the web table) is purely
+            # visual and independent of the shift code — overrides the
+            # fill only, keeps whatever border the WH/TH/OT flags above
+            # already set, and switches to a contrasting font color since
+            # an arbitrary user-picked color can't be assumed to work with
+            # the shift code's own (tint-tuned) text color.
+            highlight = (emp.get("cellColors") or {}).get(str(d)) or (emp.get("cellColors") or {}).get(d)
+            if highlight:
+                cell.fill = PatternFill("solid", fgColor=argb(highlight))
+                cell.font = Font(name=cell.font.name, size=cell.font.size, bold=cell.font.bold,
+                                  color=argb(contrast_text(highlight)))
         for c in (1, 2, 3):
             ws.cell(row=row, column=c).border = all_sides
         note_cell = ws.cell(row=row, column=last_col, value=emp.get("note", ""))
         note_cell.font = base_font
         note_cell.alignment = left
         note_cell.border = all_sides
+        note_color = emp.get("noteColor")
+        if note_color:
+            note_cell.fill = PatternFill("solid", fgColor=argb(note_color))
+            note_cell.font = Font(name=base_font.name, size=base_font.size, color=argb(contrast_text(note_color)))
         set_row_height(row, 27)
         row += 1
 
@@ -218,27 +258,6 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
                 cell.font = base_font
                 cell.border = all_sides
             set_row_height(row, 27)
-            row += 1
-
-    # ---- holiday list (only if this month has any) ----
-    month_holidays = [
-        {"d": d, "name": h["name"]}
-        for d in range(1, nd + 1)
-        if (h := is_holiday(state["yearBE"], state["month"], d, holidays))
-    ]
-    if month_holidays:
-        row += 1
-        ws.cell(row=row, column=1, value="วันหยุดในเดือนนี้").font = Font(
-            name=FONT_NAME, size=FONT_SIZE, bold=True, color=argb("B91C1C"))
-        set_row_height(row, 24)
-        row += 1
-        for h in month_holidays:
-            ws.cell(row=row, column=1, value=f"วันที่ {h['d']}").font = Font(
-                name=FONT_NAME, size=FONT_SIZE, bold=True, color=argb("B91C1C"))
-            ws.cell(row=row, column=1).fill = PatternFill("solid", fgColor=argb("FDEAEA"))
-            ws.cell(row=row, column=1).alignment = center
-            ws.cell(row=row, column=2, value=h["name"]).font = base_font
-            set_row_height(row, 24)
             row += 1
 
     # ---- signature block: 4 blank spacer rows, then line / label / date ----
@@ -297,7 +316,7 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
                     end_row=sig_cert_row, end_column=block1_start + sig_block_width - 1)
     ws.merge_cells(start_row=sig_cert_row, start_column=block2_start,
                     end_row=sig_cert_row, end_column=block2_start + sig_block_width - 1)
-    cert_font = Font(name=FONT_NAME, size=11, color=argb("94A3B8"))
+    cert_font = Font(name=FONT_NAME, size=11, color=argb("475569"))
     for c in (block1_start, block2_start):
         cell = ws.cell(row=sig_cert_row, column=c)
         cell.font = cert_font
@@ -321,50 +340,187 @@ def build_workbook(state: dict, holidays: list) -> tuple[Workbook, SignatureLayo
     return wb, layout
 
 
-def inject_approval_signatures(
-    pending_path: str,
-    layout: SignatureLayout,
-    section_name: str, section_approved_at: str,
-    division_name: str, division_approved_at: str,
-    section_approval_id: str | None = None,
-    division_approval_id: str | None = None,
-) -> Workbook:
-    """Re-opens the pending file and writes into the anchor (top-left) cell
-    of each merged signature range — openpyxl only accepts writes there;
-    writing to any other cell in a merged range raises AttributeError.
+def _fmt_thai_date(iso_str: str) -> str:
+    dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    return f"{dt.day:02d}/{dt.month:02d}/{dt.year + 543}"
 
-    section_approval_id / division_approval_id are Power Automate's own
-    "Approval ID" for each "Start and wait for an approval" step — a
-    unique, Microsoft-assigned identifier for that specific approval
-    instance. Including it on the signed document gives a verifiable
-    audit-trail reference distinct from just a name and a timestamp: it
-    ties the printed signature back to the exact approval record in
-    Power Automate's own run history, which a name/date pair alone
-    doesn't. Optional (defaults to None) so this function's older
-    call signature — before cert IDs existed — still works; callers that
-    don't have an ID just leave that block's reference line blank."""
-    wb = load_workbook(pending_path)
-    ws = wb.active
+
+def _excel_width_to_px(char_width: float) -> float:
+    """Excel's own documented formula for converting a column's character
+    width to pixels (MDW = Maximum Digit Width of the default font,
+    Calibri 11 = 7px): pixels = TRUNCATE(((256*width + TRUNCATE(128/MDW))
+    / 256) * MDW). This replaced a rough width*7+5 approximation that
+    overestimated by ~5px per column — a 20px cumulative error across the
+    4-column signature block, which was small enough to not obviously
+    break anything but large enough to visibly shift the calculated
+    "center" away from where Excel itself centers the text label sharing
+    the same merged range, since that label's centering is native/exact
+    and doesn't go through this approximation at all."""
+    mdw = 7
+    return math.floor(((256 * char_width + math.floor(128 / mdw)) / 256) * mdw)
+
+
+def _crop_to_content(path: str) -> io.BytesIO:
+    """Trims blank margin from a signature image down to the actual ink's
+    bounding box, in memory (returns a BytesIO, doesn't touch the file on
+    disk). Necessary before scaling: two managers' uploads can be the same
+    *file* dimensions while the actual signature strokes occupy very
+    different fractions of that canvas — one might be tightly cropped,
+    another might have wide margins from how they scanned or exported it.
+    Scaling the raw file dimensions to fit the same box (the old behavior)
+    made the second one look smaller even though the strokes themselves
+    should read as roughly the same size on the page. Cropping to content
+    first means the *ink*, not the canvas, is what gets sized consistently."""
+    img = PILImage.open(path)
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        # PNG with real transparency — crop to the alpha channel's bbox.
+        bbox = img.convert("RGBA").split()[-1].getbbox()
+    else:
+        # No transparency (a JPEG, or a flattened PNG) — assume a light/white
+        # background and crop to whatever isn't close to white.
+        rgb = img.convert("RGB")
+        diff = ImageChops.difference(rgb, PILImage.new("RGB", rgb.size, (255, 255, 255)))
+        # A pure-white pixel differs from white by 0; a small tolerance
+        # (10) absorbs JPEG compression noise in what should be blank
+        # background without also eating faint, thin pen strokes.
+        bbox = diff.point(lambda p: 255 if p > 10 else 0).convert("L").getbbox()
+    cropped = img.crop(bbox) if bbox else img
+
+    buf = io.BytesIO()
+    cropped.save(buf, format="PNG")  # PNG regardless of source format — lossless, keeps any alpha
+    buf.seek(0)
+    return buf
+
+
+def _place_signature_image(ws, path: str, row: int, col: int, block_width: int,
+                            width_fraction: float = 0.72, height_fraction: float = 0.72):
+    """Anchors a signature PNG inside the merged underline range, scaled
+    down (never up) to fit within a fraction of the block's *actual*
+    measured width/height while keeping its own aspect ratio, then
+    centered in the remaining space both ways.
+
+    Deliberately sized as a fraction of the real measured block, not a
+    fixed pixel cap: a fixed cap (e.g. "36px tall") can end up taller
+    than the row actually is, which forces the centering offset to clamp
+    to 0 and pins the image to one edge instead of centering it — exactly
+    backwards from the goal. Sizing relative to the block's own dimensions
+    guarantees visible margin on every side regardless of the workbook's
+    actual row height or column widths."""
+    total_width_px = sum(
+        _excel_width_to_px(ws.column_dimensions[get_column_letter(col + i)].width or 8.43)
+        for i in range(block_width)
+    )
+    row_height_pt = ws.row_dimensions[row].height or 15  # Excel's own default
+    total_height_px = row_height_pt * 96 / 72  # pt -> px at 96 DPI
+
+    max_width = total_width_px * width_fraction
+    max_height = total_height_px * height_fraction
+
+    img = XLImage(_crop_to_content(path))
+    scale = min(max_width / img.width, max_height / img.height, 1.0)
+    img.width = int(img.width * scale)
+    img.height = int(img.height * scale)
+
+    col_off_px = max(0, (total_width_px - img.width) / 2)
+    # Empirical calibration: the math above is exact per Excel's own
+    # documented column-width formula (verified: predicted offset matched
+    # a real generated file's actual offset exactly, 89.0px = 89.0px) —
+    # but real-world testing in actual Excel still showed the signature
+    # sitting a consistent ~20-30px left of true-center. Most likely cause
+    # is font substitution (this math assumes Calibri/MDW=7, which only
+    # holds if Calibri is what's actually installed and rendering on the
+    # viewer's machine) or residual asymmetric padding surviving the
+    # content crop — neither reproducible from here without the actual
+    # signature file and viewing environment. Nudging right by a fixed
+    # amount, clamped to the block's own width, is the practical fix until
+    # there's a way to verify the real cause directly.
+    col_off_px = min(col_off_px + 25, max(0, total_width_px - img.width))
+    row_off_px = max(0, (total_height_px - img.height) / 2)
+
+    anchor = OneCellAnchor()
+    anchor._from = AnchorMarker(
+        col=col - 1, colOff=pixels_to_EMU(col_off_px),  # openpyxl anchors are 0-indexed
+        row=row - 1, rowOff=pixels_to_EMU(row_off_px),
+    )
+    anchor.ext = XDRPositiveSize2D(cx=pixels_to_EMU(img.width), cy=pixels_to_EMU(img.height))
+    img.anchor = anchor
+    ws.add_image(img)
+
+
+def _inject_signature_block(
+    ws, layout: SignatureLayout, col: int,
+    name: str, approved_at: str,
+    signature_path: str | None, approval_id: str | None,
+):
+    """One manager's block: signature image (or, if they haven't uploaded
+    one yet, their typed name as a fallback — a missing signature image
+    must never be the reason an approval can't complete), plus the date
+    and audit-trail cert line, which stay as text either way."""
     base_font = Font(name=FONT_NAME, size=FONT_SIZE)
     center = Alignment(horizontal="center", vertical="center")
 
-    def fmt_thai_date(iso_str: str) -> str:
-        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-        return f"{dt.day:02d}/{dt.month:02d}/{dt.year + 543}"
-
-    for col, name, when, cert_id in (
-        (layout.block1_start, section_name, section_approved_at, section_approval_id),
-        (layout.block2_start, division_name, division_approved_at, division_approval_id),
-    ):
+    if signature_path:
+        _place_signature_image(ws, signature_path, layout.sig_line_row, col, layout.block_width)
+        # The dashed underline is a "sign here" guide for the unsigned
+        # template — once a real signature image is sitting there, the
+        # guide line under/through it just looks like clutter, so drop it.
+        #
+        # Unmerge/restyle/re-merge, not a direct border assignment: this
+        # cell is the anchor of a merged range that was already saved and
+        # reloaded (this function runs on a freshly load_workbook()'d
+        # file). Confirmed via an isolated repro that directly setting
+        # `.border = Border()` on an already-merged range's anchor cell
+        # silently reverts to its old border on the *next* save+reload —
+        # openpyxl re-derives merged-range cell styling from somewhere
+        # that a plain assignment doesn't update. Unmerging first, then
+        # restyling, then re-merging avoids whatever stale state that is.
+        merge_range = f"{get_column_letter(col)}{layout.sig_line_row}:{get_column_letter(col + layout.block_width - 1)}{layout.sig_line_row}"
+        ws.unmerge_cells(merge_range)
+        ws.cell(row=layout.sig_line_row, column=col).border = Border()
+        ws.merge_cells(merge_range)
+    else:
         name_cell = ws.cell(row=layout.sig_line_row, column=col, value=name)
         name_cell.font = base_font
         name_cell.alignment = center
-        date_cell = ws.cell(row=layout.sig_date_row, column=col, value=fmt_thai_date(when))
-        date_cell.font = base_font
-        date_cell.alignment = center
-        if cert_id:
-            cert_cell = ws.cell(row=layout.sig_cert_row, column=col, value=f"รหัสอ้างอิง: {cert_id}")
-            cert_cell.font = Font(name=FONT_NAME, size=11, color=argb("94A3B8"))
-            cert_cell.alignment = center
 
+    date_cell = ws.cell(row=layout.sig_date_row, column=col, value=_fmt_thai_date(approved_at))
+    date_cell.font = base_font
+    date_cell.alignment = center
+    if approval_id:
+        cert_cell = ws.cell(row=layout.sig_cert_row, column=col, value=f"รหัสอ้างอิง: {approval_id}")
+        cert_cell.font = Font(name=FONT_NAME, size=11, color=argb("475569"))
+        cert_cell.alignment = center
+
+
+def inject_section_signature(
+    pending_path: str, layout: SignatureLayout,
+    section_name: str, section_approved_at: str,
+    signature_path: str | None = None, section_approval_id: str | None = None,
+) -> Workbook:
+    """Called right after the Section Manager approves — stamps only
+    their block, so the file that goes on to the Division Manager already
+    shows a real signature, not a name that gets filled in only once
+    everything is done."""
+    wb = load_workbook(pending_path)
+    _inject_signature_block(
+        wb.active, layout, layout.block1_start,
+        section_name, section_approved_at, signature_path, section_approval_id,
+    )
+    return wb
+
+
+def inject_division_signature(
+    pending_path: str, layout: SignatureLayout,
+    division_name: str, division_approved_at: str,
+    signature_path: str | None = None, division_approval_id: str | None = None,
+) -> Workbook:
+    """Called at final approval — the file at pending_path already has the
+    section signature baked in (from inject_section_signature above,
+    which was saved back over the same path), so this only needs to add
+    the division block on top."""
+    wb = load_workbook(pending_path)
+    _inject_signature_block(
+        wb.active, layout, layout.block2_start,
+        division_name, division_approved_at, signature_path, division_approval_id,
+    )
     return wb

@@ -10,52 +10,56 @@
    which is why you'll see those spelled out in the components. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Design tokens — corporate navy/slate system. Primary (navy) is used
-   for chrome and primary actions ONLY — buttons, focus rings, active
-   nav, the sticky header. Red/green/orange are reserved exclusively for
-   status meaning (errors, success, OT/holiday flags) so they keep their
-   signal value instead of competing with brand color for attention,
-   which is the actual thing that makes an interface read as "generic
-   template" rather than "enterprise system a team relies on daily."
-   Sarabun stays the body/data typeface (Thai legibility, and it's the
-   same font the Excel/print export uses — on-screen and the signed
-   document should look like the same document). Inter handles UI chrome. */
+/* Design tokens — soft-modern violet system (chosen over the earlier
+   navy/amber "toll gate" direction). Primary (violet) is used for
+   chrome and primary actions ONLY — buttons, focus rings, active nav,
+   the sticky header. Red/green/orange stay reserved exclusively for
+   status meaning (errors, success, OT/holiday flags) so they keep
+   their signal value instead of competing with brand color for
+   attention — that principle carries over unchanged from the previous
+   palette. TH Sarabun is now the primary typeface throughout (UI chrome
+   included, not just body/data) — its rounded letterforms suit the
+   softer aesthetic, and it already matched the Excel/print export's
+   font for body text, so the whole app and the signed document now
+   read as even more clearly the same document. */
 @theme {
-  --font-sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "TH Sarabun New", "Sarabun", "Noto Sans Thai", "Inter", -apple-system, "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
   --font-thai: "TH Sarabun New", "Sarabun", "Noto Sans Thai", -apple-system, "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
 
   --color-ink: #0f172a;
   --color-ink-soft: #475569;
   --color-ink-faint: #94a3b8;
-  --color-canvas: #f8fafc;
+  --color-canvas: #f7f8fa;
   --color-surface: #ffffff;
-  --color-line: #e2e8f0;
+  --color-line: #e7e9ee;
 
-  /* Primary — deep slate-navy. The one brand color; everything else in
-     chrome stays neutral so this reads as intentional, not decorative. */
-  --color-primary: #1e3a5f;
-  --color-primary-soft: #eaf0f7;
-  --color-primary-hover: #16304d;
-  --color-primary-bright: #2f6fb0;
+  /* Primary — soft violet. Flat and solid everywhere it's used
+     (buttons, active states, links) — no gradients, still a flat-color
+     system, just a warmer hue than the previous navy. */
+  --color-primary: #534ab7;
+  --color-primary-soft: #eeedfe;
+  --color-primary-hover: #453da0;
+  --color-primary-bright: #534ab7;
+
+  /* Secondary accent — soft pink, used sparingly for decorative
+     flourish only (the auth brand panel) — never for chrome, buttons,
+     or anything that could be confused with status meaning. */
+  --color-secondary: #d4537e;
+  --color-secondary-soft: #fbeaf0;
 
   /* Status only — never used for chrome/buttons/nav. */
-  --color-danger: #dc2626;
-  --color-danger-soft: #fef2f2;
-  --color-success: #16a34a;
-  --color-success-soft: #f0fdf4;
-  --color-warning: #ea580c;
-  --color-warning-soft: #fff7ed;
+  --color-danger: #d1242f;
+  --color-danger-soft: #fdedee;
+  --color-success: #1a7f37;
+  --color-success-soft: #e9f7ee;
+  --color-warning: #bc4c00;
+  --color-warning-soft: #fdf1e6;
 
-  --animate-fade-in: fade-in .35s ease-out both;
-  --animate-fade-up: fade-up .4s cubic-bezier(.16,1,.3,1) both;
+  --animate-fade-in: fade-in .2s ease-out both;
 
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
-  }
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
   }
 }
 
@@ -67,20 +71,23 @@
   --color-ink: #e7edf5;
   --color-ink-soft: #a7b4c6;
   --color-ink-faint: #64748b;
-  --color-canvas: #0b1220;
-  --color-surface: #131c2e;
-  --color-line: #253045;
+  --color-canvas: #0a0e16;
+  --color-surface: #11161f;
+  --color-line: #262d3a;
 
-  --color-primary: #4d84c4;
-  --color-primary-soft: #17293f;
-  --color-primary-hover: #6a9bd4;
-  --color-primary-bright: #6a9bd4;
+  --color-primary: #8f87d6;
+  --color-primary-soft: #241f47;
+  --color-primary-hover: #a9a2e3;
+  --color-primary-bright: #8f87d6;
 
-  --color-danger: #f87171;
+  --color-secondary: #e38caa;
+  --color-secondary-soft: #3a2230;
+
+  --color-danger: #f2555f;
   --color-danger-soft: #2a1417;
-  --color-success: #4ade80;
+  --color-success: #3fb765;
   --color-success-soft: #10241a;
-  --color-warning: #fb923c;
+  --color-warning: #e2843b;
   --color-warning-soft: #2a1c0f;
 
   color-scheme: dark;
@@ -92,6 +99,19 @@ body {
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
   transition: background-color .2s ease, color .2s ease;
+}
+
+/* Standardized dropdown chevron — applies to every <select> in the app
+   (month picker, group-rotation panels, coverage pick-a-shift) so they
+   read as one deliberate design-system component instead of bare
+   browser-default selects. Plain CSS rather than a Tailwind arbitrary
+   value: v4's bracket parser silently drops arbitrary values containing
+   literal spaces, and an SVG data-URI is full of them. */
+select{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 14px 14px;
 }
 
 /* ---------------------------------------------------------------------
@@ -107,101 +127,134 @@ body {
    --------------------------------------------------------------------- */
 
 .table-wrap{
-  overflow-x:auto;
-  overflow-y:visible;
-  border-radius:14px;
+  overflow:auto;
+  /* Bounded height + its own scrollbar, not whole-page scroll for the
+     table body. This is a deliberate structural fix, not just a tweak:
+     `overflow-x:auto` on this box unavoidably makes IT (not the page
+     viewport) the containing block for the thead's `position:sticky`
+     below — verified in a real browser, and true whether overflow-y is
+     left implicit, or explicitly `auto`, `hidden`, or even `clip`. So a
+     header that's meant to freeze while columns scroll horizontally in
+     sync can only reliably stick to *this* box, never to the page — the
+     two other options (JS-driven fake-sticky, or giving up horizontal
+     column sync) are both worse. `top:0` below is what that requires.
+     104px/121px-style "clear the Toolbar" offsets belonged to a model
+     that doesn't actually work cross-browser for this layout — don't
+     reintroduce one. */
+  max-height: calc(100vh - 152px);
+  border-radius:8px;
+  border:1px solid var(--color-line);
   background:var(--color-surface);
-  box-shadow: 0 1px 2px rgba(20,24,31,0.05), 0 1px 1px rgba(20,24,31,0.03);
   scrollbar-width:thin;
-}
-.dark .table-wrap{
-  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
 }
 table{border-collapse:collapse; width:100%; font-family:var(--font-thai);}
 th,td{border:1px solid var(--color-line); padding:0; text-align:center;}
 thead th{
-  background:#fafbfc;
+  background:#f6f7f9;
   color:var(--color-ink);
-  font-size:14px;
+  font-size:15.5px;
   font-weight:700;
-  padding:6px 3px;
-  /* Offset to clear the sticky Toolbar bar above it (both stick to the
-     viewport top, so without this the table header would slide underneath
-     the Toolbar instead of stopping below it). ~104px is estimated from
-     Toolbar's own padding/content — no live browser available to measure
-     the actual rendered height, so verify this visually and adjust if the
-     header sits a few px too high/low under the bar. */
-  position:sticky; top:104px; z-index:3;
+  padding:10px 6px;
+  /* Sticks to the top of .table-wrap's own scrollport (see the comment
+     there for why it can't stick to the page viewport instead). */
+  position:sticky; top:0; z-index:3;
   border-bottom:2px solid var(--color-line);
 }
-thead th .wd{display:block; color:var(--color-primary); font-weight:700; font-size:11.5px; margin-top:2px;}
+thead th .wd{display:block; color:var(--color-primary); font-weight:700; font-size:13px; margin-top:3px;}
 thead th.holiday{background:var(--color-danger-soft);}
 thead th.holiday .wd{color:var(--color-danger);}
-th.col-no, td.col-no{width:44px; min-width:44px;}
-th.col-code, td.col-code{width:92px; min-width:92px;}
-th.col-name, td.col-name{width:210px; min-width:210px; text-align:right; padding-right:6px;}
-th.col-note, td.col-note{width:178px; min-width:178px;}
+th.col-no, td.col-no{width:48px; min-width:48px;}
+th.col-code, td.col-code{width:110px; min-width:110px;}
+th.col-name, td.col-name{width:230px; min-width:230px; text-align:center; padding:0 10px;}
+th.col-status, td.col-status{width:96px; min-width:96px; text-align:center; background:var(--color-surface);}
+th.col-status{position:sticky; left:388px; z-index:4; background:#f6f7f9;}
+td.col-status{position:sticky; left:388px; z-index:2;}
+th.col-note, td.col-note{width:190px; min-width:190px;}
 td.col-name{font-weight:600;}
-th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:#fafbfc;}
+th.col-no,th.col-code,th.col-name{position:sticky; z-index:4; background:#f6f7f9;}
 td.col-no,td.col-code,td.col-name{position:sticky; z-index:2; background:var(--color-surface);}
 th.col-no,td.col-no{left:0;}
-th.col-code,td.col-code{left:34px;}
-th.col-name,td.col-name{left:112px; border-right:2px solid var(--color-line);}
-tr:nth-child(even){background:#fbfbfc;}
-tr:nth-child(even) td.col-name, tr:nth-child(even) td.col-no, tr:nth-child(even) td.col-code{background:#fbfbfc;}
+th.col-code,td.col-code{left:48px;}
+th.col-name,td.col-name{left:158px; border-right:0;}
+th.col-status,td.col-status{border-right:2px solid var(--color-line);}
+tr:nth-child(even){background:#fafafb;}
+tr:nth-child(even) td.col-name, tr:nth-child(even) td.col-no, tr:nth-child(even) td.col-code, tr:nth-child(even) td.col-status{background:#fafafb;}
 tr{transition:background-color .1s ease;}
 tr:hover td{background:var(--color-primary-soft);}
-tr:hover td.col-name, tr:hover td.col-no, tr:hover td.col-code{background:var(--color-primary-soft);}
+tr:hover td.col-name, tr:hover td.col-no, tr:hover td.col-code, tr:hover td.col-status{background:var(--color-primary-soft);}
 
+.dark .table-wrap{border-color:var(--color-line);}
 .dark thead th,
-.dark th.col-no, .dark th.col-code, .dark th.col-name{background:#0f1929;}
-.dark tr:nth-child(even){background:#101a2b;}
-.dark tr:nth-child(even) td.col-name, .dark tr:nth-child(even) td.col-no, .dark tr:nth-child(even) td.col-code{background:#101a2b;}
+.dark th.col-no, .dark th.col-code, .dark th.col-name, .dark th.col-status{background:#161c28;}
+.dark td.col-status{background:var(--color-surface);}
+.dark tr:nth-child(even){background:#131925;}
+.dark tr:nth-child(even) td.col-name, .dark tr:nth-child(even) td.col-no, .dark tr:nth-child(even) td.col-code{background:#131925;}
 
-.pattern-badge{display:inline-block; font-size:12px; color:var(--color-ink-faint); font-weight:400; margin-top:1px; font-family:var(--font-sans);}
+.pattern-badge{display:inline-block; font-size:13px; color:var(--color-ink-faint); font-weight:400; margin-top:1px; font-family:var(--font-sans);}
 
-td.day-cell{width:82px; min-width:82px; padding:2px; position:relative;}
+td.day-cell{width:100px; min-width:100px; padding:4px; position:relative;}
 td.day-cell input{
   width:100%;
   border:none;
   background:transparent;
   text-align:center;
-  font-size:15px;
+  font-size:16.5px;
   font-weight:700;
-  padding:8px 3px;
+  padding:11px 4px;
   border-radius:4px;
   color:var(--color-ink);
   font-family:inherit;
 }
-td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px; border-radius:6px; background:var(--color-primary-soft);}
+td.day-cell input:focus{outline:2px solid var(--color-primary); outline-offset:-2px; border-radius:4px; background:var(--color-primary-soft);}
+td.day-cell:hover{box-shadow:inset 0 0 0 1.5px var(--color-primary);}
 td.day-cell.weekend{background:#fafaf8;}
-.dark td.day-cell.weekend{background:#0f1929;}
+.dark td.day-cell.weekend{background:#161c28;}
 td.day-cell.holiday{background:var(--color-danger-soft);}
-td.day-cell.predicted{box-shadow:inset 0 0 0 1px #fbd7ae;}
+td.day-cell.predicted{box-shadow:inset 0 0 0 1px #d99a56;}
 td.day-cell .predict-dot{
-  position:absolute; top:2px; right:2px; width:6px; height:6px; border-radius:50%;
-  background:#ea580c; pointer-events:none;
+  position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%;
+  background:var(--color-warning); pointer-events:none;
 }
 td.col-note input{
-  width:100%; border:none; background:transparent; padding:8px 6px; font-size:15px; text-align:left; font-family:inherit;
+  width:100%; border:none; background:transparent; padding:10px 8px; font-size:16px; text-align:left; font-family:inherit;
 }
-.rm-row{background:none;border:none;color:var(--color-ink-faint);cursor:pointer;padding:2px 4px;font-size:18px;}
+.rm-row{background:none;border:none;color:var(--color-ink-faint);cursor:pointer;padding:2px 4px;font-size:19px;}
 .rm-row:hover{color:var(--color-danger);}
 th.col-rm{width:26px; min-width:26px;}
 td.col-rm{width:26px; min-width:26px;}
 
-th.col-prev{width:82px; min-width:82px; background:#f1f1ef !important; color:var(--color-ink-soft);}
-.dark th.col-prev{background:#0c1523 !important;}
+th.col-prev{width:92px; min-width:92px; background:#f1f1ef !important; color:var(--color-ink-soft);}
+.dark th.col-prev{background:#12171f !important;}
 th.col-prev.prev-last{border-right:2px dashed var(--color-line);}
 th.col-prev .wd{color:var(--color-ink-soft) !important;}
-th.col-prev .prevtag{display:block; font-size:10px; font-weight:600; letter-spacing:.2px; margin-top:1px;}
+th.col-prev .prevtag{display:block; font-size:11px; font-weight:600; letter-spacing:.2px; margin-top:1px;}
 td.day-cell.prev-day{background:var(--color-canvas);}
 td.day-cell.prev-day.prev-last{border-right:2px dashed var(--color-line);}
 td.day-cell.prev-day .prevval{
-  display:block; width:100%; padding:8px 3px; font-size:15px; font-weight:700;
+  display:block; width:100%; padding:8px 3px; font-size:16.5px; font-weight:700;
   border-radius:4px; opacity:.62; user-select:none;
 }
 td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
+
+
+.roster-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;border:1px solid var(--color-line);border-bottom:0;border-radius:10px 10px 0 0;background:var(--color-surface);}
+.roster-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font:12px var(--font-sans);color:var(--color-ink-soft);}
+.roster-legend>span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.legend-dot{width:8px;height:8px;border-radius:999px;display:inline-block;box-shadow:0 0 0 2px rgba(0,0,0,.03);}
+.legend-dot.approved{background:#22c55e}.legend-dot.predicted{background:#f59e0b}.legend-dot.leave{background:#3b82f6}.legend-dot.conflict{background:#ef4444}
+.roster-status{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:999px;font:600 11px var(--font-sans);white-space:nowrap;}
+.roster-status.approved{background:#ecfdf5;color:#047857}.roster-status.leave{background:#eff6ff;color:#1d4ed8}.roster-status.conflict{background:#fef2f2;color:#b91c1c}.roster-status.neutral{background:#f4f4f5;color:#52525b}
+.day-cell-inner{position:relative;display:flex;align-items:center;justify-content:center;}
+.day-cell-inner input{position:relative;z-index:1;}
+.drag-grip{position:absolute;left:4px;top:50%;transform:translateY(-50%);color:var(--color-ink-faint);opacity:0;transition:opacity .12s;pointer-events:none;z-index:2;}
+td.day-cell:hover .drag-grip,td.day-cell:focus-within .drag-grip{opacity:.8;}
+td.day-cell.conflict{box-shadow:inset 0 0 0 1.5px #ef4444;background:#fff7f7;}
+td.day-cell.drop-target{box-shadow:inset 0 0 0 2px var(--color-primary);background:var(--color-primary-soft)!important;}
+.status-icon{position:absolute;right:4px;bottom:3px;z-index:3;pointer-events:none;}
+.status-leave{color:#2563eb}.status-conflict{color:#dc2626}
+.dark td.day-cell.conflict{background:#2a1719;}
+.dark .roster-status.approved{background:#052e22;color:#6ee7b7}.dark .roster-status.leave{background:#172554;color:#93c5fd}.dark .roster-status.conflict{background:#450a0a;color:#fca5a5}.dark .roster-status.neutral{background:#27272a;color:#d4d4d8}
+@media(max-width:900px){.roster-toolbar{align-items:flex-start;flex-direction:column}.roster-legend{gap:8px}.col-status{display:none!important;}th.col-name,td.col-name{left:158px;border-right:2px solid var(--color-line);}}
 
 .footer-note{margin-top:14px; font-size:13.5px; color:var(--color-ink-soft); line-height:1.7; font-family:var(--font-sans);}
 .footer-note b{color:var(--color-ink);}
@@ -221,10 +274,59 @@ td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
   .print-title{display:block; text-align:center; margin-bottom:8px;}
   .print-title h2{margin:0; font-size:19px;}
   .print-title div{font-size:15px; color:#555;}
-  .table-wrap{box-shadow:none;}
+  .table-wrap{box-shadow:none; max-height:none !important; overflow:visible !important;}
   thead th{position:static;}
   td.col-no,td.col-code,td.col-name,th.col-no,th.col-code,th.col-name{position:static;}
   td.day-cell.predicted{box-shadow:none;}
   .predict-dot{display:none;}
   table{width:100%;}
 }
+
+
+/* Dashboard: keep the information layer airy while the roster remains dense. */
+.dashboard-number { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* Phase 3 — cell detail affordance */
+.cell-detail-btn{
+  position:absolute; right:3px; top:3px; z-index:4;
+  width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+  border-radius:5px; border:1px solid var(--color-line);
+  background:var(--color-surface); color:var(--color-ink-faint);
+  opacity:0; transform:translateY(2px) scale(.94);
+  transition:opacity .14s ease, transform .14s ease, color .14s ease, background .14s ease;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);
+}
+td.day-cell:hover .cell-detail-btn,
+td.day-cell:focus-within .cell-detail-btn,
+.cell-detail-btn:focus-visible{opacity:1; transform:none;}
+.cell-detail-btn:hover{color:var(--color-primary); background:var(--color-primary-soft);}
+@media(max-width:900px){
+  .cell-detail-btn{opacity:.75; transform:none; width:17px; height:17px;}
+}
+
+
+/* Phase 5 — temporary focus state when Manager Action Center jumps to a roster cell. */
+.action-focus-pulse {
+  position: relative;
+  z-index: 8;
+  box-shadow: inset 0 0 0 2px rgb(99 102 241 / 0.65), 0 0 0 4px rgb(99 102 241 / 0.12);
+  animation: action-focus-pulse 1.5s ease-out;
+}
+@keyframes action-focus-pulse {
+  0%, 35% { box-shadow: inset 0 0 0 2px rgb(99 102 241 / 0.85), 0 0 0 5px rgb(99 102 241 / 0.18); }
+  100% { box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+
+/* Phase 6 — Smart roster multi-select / bulk actions */
+.bulk-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border:1px solid var(--color-line);border-top:0;background:var(--color-surface);font:12.5px var(--font-sans);}
+.bulk-select-toggle,.bulk-preview-btn,.bulk-undo-btn,.bulk-apply-btn,.bulk-cancel-btn{border:1px solid var(--color-line);border-radius:7px;background:var(--color-surface);color:var(--color-ink);padding:6px 10px;font:600 12px var(--font-sans);cursor:pointer;transition:.14s ease;}
+.bulk-select-toggle:hover,.bulk-preview-btn:hover,.bulk-undo-btn:hover{border-color:var(--color-primary);color:var(--color-primary);background:var(--color-primary-soft);}
+.bulk-select-toggle.active{background:var(--color-primary-soft);color:var(--color-primary);border-color:color-mix(in srgb,var(--color-primary) 35%,var(--color-line));}
+.bulk-count{color:var(--color-ink-soft);white-space:nowrap;}.bulk-count b{color:var(--color-ink);font-variant-numeric:tabular-nums;}
+.bulk-link{border:0;background:none;color:var(--color-primary);font:600 12px var(--font-sans);cursor:pointer;padding:5px 2px;}.bulk-link:disabled{opacity:.4;cursor:not-allowed;}
+.bulk-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;}.bulk-actions select{height:30px;border:1px solid var(--color-line);border-radius:7px;background:var(--color-surface);color:var(--color-ink);padding:0 8px;font:12px var(--font-sans);}
+.bulk-preview{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:10px 12px;border:1px solid color-mix(in srgb,var(--color-primary) 25%,var(--color-line));background:var(--color-primary-soft);font:12px var(--font-sans);color:var(--color-ink);}
+.bulk-preview>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:190px;}.bulk-preview>div:first-child span{color:var(--color-ink-soft);}.bulk-preview-list{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:280px;}.bulk-preview-list span{padding:4px 7px;border-radius:6px;background:var(--color-surface);border:1px solid var(--color-line);}.bulk-preview-actions{display:flex;gap:6px;margin-left:auto;}.bulk-apply-btn{background:var(--color-primary);border-color:var(--color-primary);color:white;}.bulk-cancel-btn{background:transparent;}.bulk-undo-btn{color:#b45309;border-color:#fbbf24;background:#fffbeb;}
+.cell-select-btn{position:absolute;left:3px;top:3px;z-index:5;width:16px;height:16px;border:1px solid var(--color-line);border-radius:4px;background:var(--color-surface);color:var(--color-primary);font:700 11px/14px var(--font-sans);padding:0;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;}.cell-select-btn.selected{background:var(--color-primary);border-color:var(--color-primary);color:white;}.day-cell.bulk-selected{box-shadow:inset 0 0 0 2px var(--color-primary), inset 0 0 0 999px color-mix(in srgb,var(--color-primary) 5%,transparent);}
+.dark .bulk-undo-btn{background:#422006;color:#fcd34d;border-color:#92400e;}
+@media(max-width:900px){.bulk-actions{margin-left:0;width:100%;}.bulk-preview-actions{width:100%;margin-left:0;justify-content:flex-end;}.bulk-toolbar{padding:8px;}.bulk-preview{padding:9px 8px;}.bulk-preview-list{min-width:100%;}}
