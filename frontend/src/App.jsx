@@ -21,12 +21,16 @@ import LoginPage from "./components/LoginPage";
 import DepartmentPicker from "./components/DepartmentPicker";
 import AuthBrandPanel from "./components/AuthBrandPanel";
 
-import TopBar from "./components/TopBar";
+import AppShell from "./components/layout/AppShell";
 import ScheduleSubToolbar from "./components/ScheduleSubToolbar";
 import SetupWorkspace from "./components/SetupWorkspace";
 import ApprovalDrawer from "./components/ApprovalDrawer";
 import ScheduleTable from "./components/ScheduleTable";
 import DashboardOverview from "./components/DashboardOverview";
+import ApprovalsWorkspace from "./components/pages/ApprovalsWorkspace";
+import DepartmentsPage from "./components/pages/DepartmentsPage";
+import ExportDataPage from "./components/pages/ExportDataPage";
+import AddEditShiftDialog from "./components/AddEditShiftDialog";
 import Banner from "./components/ui/Banner";
 import ScheduleReview from "./components/ScheduleReview";
 import AppErrorBoundary from "./components/AppErrorBoundary";
@@ -43,7 +47,7 @@ function useTheme(){
   return [dark, ()=>setDark(d=>!d)];
 }
 
-function ScheduleApp({ department, onSwitchDepartment }){
+function ScheduleApp({ department, onSwitchDepartment, onSelectDepartment }){
   // A single mutable store mirrors the original tool's module-global
   // variables (state / patternLib / holidays / groupRotations /
   // manualVacated / prevTail). Every mutation function below mutates this
@@ -70,7 +74,9 @@ function ScheduleApp({ department, onSwitchDepartment }){
   const [statusMsg, setStatusMsg] = useState("");
   const [analyzeMonthsBack, setAnalyzeMonthsBack] = useState(3);
   const [gapFixResult, setGapFixResult] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [page, setPage] = useState("dashboard");
+  const [scheduleSubTab, setScheduleSubTab] = useState("schedule");
+  const [addShiftOpen, setAddShiftOpen] = useState(false);
   const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState(null);
   const bulkUndoRef = useRef(null);
@@ -648,9 +654,10 @@ function ScheduleApp({ department, onSwitchDepartment }){
   // Keep every hook before any conditional return. React requires the hook
   // order to be identical on the loading render and subsequent renders.
   const focusIssue = useCallback((issue)=>{
-    if(!issue?.empId || !issue?.day) { setActiveTab("schedule"); return; }
+    setPage("schedule");
+    setScheduleSubTab("schedule");
+    if(!issue?.empId || !issue?.day) return;
     setFocusTarget({empId: issue.empId, day: issue.day, token: Date.now()});
-    setActiveTab("schedule");
   }, []);
 
   if(!ready || !store.current.state){
@@ -692,13 +699,13 @@ function ScheduleApp({ department, onSwitchDepartment }){
         reviewIssues.push({
           id:`invalid-${emp.id}-${d}`, level:"blocking", empId:emp.id, day:d,
           title:`${emp.name || emp.empCode || "ไม่ระบุพนักงาน"} · วันที่ ${d}`,
-          detail:`พบรหัสกะ “${base}” ซึ่งไม่มีอยู่ใน Master รหัสกะ`
+          detail:`พบรหัสกะ “${base}” ซึ่���ไม่มีอยู่ใน Master รหัสกะ`
         });
       }
       if(emp.autoFlags?.[d]){
         reviewIssues.push({
           id:`predicted-${emp.id}-${d}`, level:"attention", empId:emp.id, day:d,
-          title:`${emp.name || emp.empCode || "ไม่ระบุพนักงาน"} · วันที่ ${d}`,
+          title:`${emp.name || emp.empCode || "ไม่ระบุพนักงาน"} · ว���นที่ ${d}`,
           detail:`กะ ${raw} เป็นค่าที่ระบบคาดการณ์จาก pattern — ควรตรวจสอบก่อนส่งอนุมัติ`
         });
       }
@@ -714,91 +721,143 @@ function ScheduleApp({ department, onSwitchDepartment }){
 
   const recheckReview = ()=>bump();
 
+  const notifications = reviewIssues.slice(0, 6).map(i=>({ title: i.title, detail: i.detail }));
+  const badges = { approvals: locked ? 1 : 0 };
+
+  const shiftCodeList = Object.entries(s.state.shiftCodes || {}).map(([code, meta])=>({ code, ...meta }));
+
   return (
-    <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-canvas flex flex-col">
-      <div style={locked ? {pointerEvents:"none", opacity:0.55, position:"relative"} : undefined}>
-        <TopBar
-          state={s.state} statusMsg={statusMsg}
-          onDeptChange={onDeptChange} onMonthChange={onMonthChange} onYearChange={onYearChange}
-          onSave={saveState}
-          dark={dark} onToggleDark={toggleDark}
-          departmentName={department.name} onSwitchDepartment={onSwitchDepartment}
-          insightsCount={coverageCount}
-          insightsProps={{
-            state: s.state, patternLib: s.patternLib, manualVacated: s.manualVacated,
-            onUseVacated, onAssignOt: assignOt, onClearPattern,
-          }}
-          onOpenApproval={()=>setApprovalDrawerOpen(true)}
-        />
-      </div>
+    <AppErrorBoundary>
+      <AppShell
+        page={page} onNavigate={setPage} badges={badges}
+        departmentName={department.name} onSwitchDepartment={onSwitchDepartment}
+        dark={dark} onToggleDark={toggleDark}
+        statusMsg={statusMsg} onSave={saveState}
+        onOpenApproval={()=>setApprovalDrawerOpen(true)}
+        locked={page === "schedule" && locked}
+        notifications={notifications}
+      >
+        {s.state.autoGenerated && page === "schedule" && (
+          <div className="w-full px-3 sm:px-4 lg:px-6 pt-3">
+            <Banner tone="warning" icon="⚠️" className="no-print">
+              ตารางเดือนนี้สร้างจากรูปแบบของเดือนก่อนหน้าโดยอัตโนมัติ กรุณาตรวจสอบวันลา วันหยุดตามประเพณี และการเปลี่ยนแปลงอื่น ๆ
+              (จุดสีส้มบนช่องที่ยังไม่ได้ตรวจสอบ)
+            </Banner>
+          </div>
+        )}
 
-      {s.state.autoGenerated && (
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
-          <Banner tone="warning" icon="⚠️" className="no-print">
-            ตารางเดือนนี้สร้างจากรูปแบบของเดือนก่อนหน้าโดยอัตโนมัติ กรุณาตรวจสอบวันลา วันหยุดตามประเพณี และการเปลี่ยนแปลงอื่น ๆ
-            (จุดสีส้มบนช่องที่ยังไม่ได้ตรวจสอบ)
-          </Banner>
-        </div>
-      )}
-
-      <div style={locked ? {pointerEvents:"none", opacity:0.55, position:"relative"} : undefined} className="flex-1 flex flex-col">
-        <Tabs.Content value="overview" className="flex-1">
+        {page === "dashboard" && (
           <DashboardOverview
             state={s.state}
             holidays={s.holidays}
             approvalStatus={approvalStatus}
-            onOpenRoster={()=>setActiveTab("schedule")}
+            onOpenRoster={()=>setPage("schedule")}
             onOpenApproval={()=>setApprovalDrawerOpen(true)}
             onFocusIssue={focusIssue}
           />
-        </Tabs.Content>
+        )}
 
-        <Tabs.Content value="schedule" className="flex-1 flex flex-col">
-          <ScheduleSubToolbar
-            analyzeMonthsBack={analyzeMonthsBack} setAnalyzeMonthsBack={setAnalyzeMonthsBack}
-            onAddEmployee={addEmployee}
-            onDownloadPdf={onDownloadPdf} onDownloadExcel={onDownloadExcel} onPrint={onPrint}
-            onImportExcel={onImportExcel}
-            onAnalyze={analyzePatterns} onGenerateNext={generateNextMonth} onMarkReviewed={markAllReviewed}
-          />
-          <div className="w-full px-3 sm:px-4 lg:px-6 py-3">
-            <ScheduleTable
-              state={s.state} holidays={s.holidays} patternLib={s.patternLib} prevTail={s.prevTail}
-              onChangeDay={onChangeDay} onEmployeeField={onEmployeeField}
-              onRemoveEmployee={onRemoveEmployee} onAddEmployee={addEmployee}
-              onChangeCode={onChangeCode} onChangeModifierColor={onChangeModifierColor}
-              onChangeCellColor={onChangeCellColor} onChangeNoteColor={onChangeNoteColor}
-              captureRef={captureRef}
-              focusTarget={focusTarget}
-              onBulkAction={onBulkAction} onUndoBulk={onUndoBulk} bulkUndoAvailable={bulkUndoAvailable}
-            />
+        {page === "schedule" && (
+          <div
+            className="flex flex-1 flex-col"
+            style={locked ? { pointerEvents: "none", opacity: 0.55, position: "relative" } : undefined}
+          >
+            <Tabs.Root value={scheduleSubTab} onValueChange={setScheduleSubTab} className="flex flex-1 flex-col">
+              <div className="flex items-center gap-1 border-b border-line bg-white px-3 no-print dark:bg-surface sm:px-6 lg:px-8">
+                <Tabs.List className="flex gap-1 py-2">
+                  <Tabs.Trigger value="schedule" className="rounded-md px-3 py-1.5 font-sans text-[13px] font-medium text-ink-faint data-[state=active]:bg-primary-soft data-[state=active]:text-primary">
+                    ตารางกะ
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="setup" className="rounded-md px-3 py-1.5 font-sans text-[13px] font-medium text-ink-faint data-[state=active]:bg-primary-soft data-[state=active]:text-primary">
+                    ตั้งค่ารหัสกะ / กลุ่มหมุนกะ
+                  </Tabs.Trigger>
+                </Tabs.List>
+              </div>
+
+              <Tabs.Content value="schedule" className="flex flex-1 flex-col">
+                <ScheduleSubToolbar
+                  analyzeMonthsBack={analyzeMonthsBack} setAnalyzeMonthsBack={setAnalyzeMonthsBack}
+                  onAddEmployee={addEmployee}
+                  onDownloadPdf={onDownloadPdf} onDownloadExcel={onDownloadExcel} onPrint={onPrint}
+                  onImportExcel={onImportExcel}
+                  onAnalyze={analyzePatterns} onGenerateNext={generateNextMonth} onMarkReviewed={markAllReviewed}
+                  onAddShift={()=>setAddShiftOpen(true)}
+                  departmentLabel={s.state.department}
+                  onDeptLabelChange={onDeptChange}
+                  month={s.state.month} yearBE={s.state.yearBE}
+                  onMonthChange={onMonthChange} onYearChange={onYearChange}
+                  currentDepartmentSlug={department.slug}
+                  onSelectDepartment={onSelectDepartment}
+                />
+                <div className="w-full px-3 sm:px-4 lg:px-6 py-3">
+                  <ScheduleTable
+                    state={s.state} holidays={s.holidays} patternLib={s.patternLib} prevTail={s.prevTail}
+                    onChangeDay={onChangeDay} onEmployeeField={onEmployeeField}
+                    onRemoveEmployee={onRemoveEmployee} onAddEmployee={addEmployee}
+                    onChangeCode={onChangeCode} onChangeModifierColor={onChangeModifierColor}
+                    onChangeCellColor={onChangeCellColor} onChangeNoteColor={onChangeNoteColor}
+                    captureRef={captureRef}
+                    focusTarget={focusTarget}
+                    onBulkAction={onBulkAction} onUndoBulk={onUndoBulk} bulkUndoAvailable={bulkUndoAvailable}
+                  />
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="setup" className="flex-1">
+                <SetupWorkspace
+                  state={s.state} holidays={s.holidays} groupRotations={s.groupRotations} gapFixResult={gapFixResult}
+                  onChangeCode={onChangeCode} onRemoveCode={onRemoveCode} onAddCode={onAddCode}
+                  onChangeModifierColor={onChangeModifierColor}
+                  onAddHoliday={onAddHoliday} onRenameHoliday={onRenameHoliday} onRemoveHoliday={onRemoveHoliday}
+                  onLoadDefaults={onLoadDefaults} onApplyHolidays={onApplyHolidays}
+                  onAddGroup={onAddGroup} onRenameGroup={onRenameGroup} onUpdateGroup={onUpdateGroup}
+                  onRemoveGroup={onRemoveGroup} onToggleMember={onToggleMember} onQuickAdd={onQuickAdd}
+                  onApplyRotation={onApplyRotation}
+                  onFixGaps={onFixGaps} onAssignOtFromGap={onAssignOtFromGap}
+                />
+              </Tabs.Content>
+            </Tabs.Root>
           </div>
-        </Tabs.Content>
+        )}
 
-        <Tabs.Content value="setup">
-          <SetupWorkspace
-            state={s.state} holidays={s.holidays} groupRotations={s.groupRotations} gapFixResult={gapFixResult}
-            onChangeCode={onChangeCode} onRemoveCode={onRemoveCode} onAddCode={onAddCode}
-            onChangeModifierColor={onChangeModifierColor}
-            onAddHoliday={onAddHoliday} onRenameHoliday={onRenameHoliday} onRemoveHoliday={onRemoveHoliday}
-            onLoadDefaults={onLoadDefaults} onApplyHolidays={onApplyHolidays}
-            onAddGroup={onAddGroup} onRenameGroup={onRenameGroup} onUpdateGroup={onUpdateGroup}
-            onRemoveGroup={onRemoveGroup} onToggleMember={onToggleMember} onQuickAdd={onQuickAdd}
-            onApplyRotation={onApplyRotation}
-            onFixGaps={onFixGaps} onAssignOtFromGap={onAssignOtFromGap}
+        {page === "approvals" && (
+          <ApprovalsWorkspace
+            currentDepartment={department}
+            currentScheduleKey={storageKey(department.slug, s.state.month, s.state.yearBE)}
+            currentMonth={s.state.month} currentYearBE={s.state.yearBE}
+            approvalStatus={approvalStatus} approvalLoading={approvalLoading}
+            onSubmitApproval={onSubmitApproval} approvalSubmitting={approvalSubmitting} approvalSubmitError={approvalSubmitError}
+            reviewBlockingCount={reviewIssues.filter(x=>x.level === "blocking").length}
           />
-        </Tabs.Content>
-      </div>
+        )}
+
+        {page === "departments" && (
+          <DepartmentsPage currentDepartment={department} onSelectDepartment={onSelectDepartment} />
+        )}
+
+        {page === "export" && (
+          <ExportDataPage
+            currentDepartment={department} currentMonth={s.state.month} currentYearBE={s.state.yearBE}
+            onDownloadExcel={onDownloadExcel} onDownloadPdf={onDownloadPdf}
+          />
+        )}
+      </AppShell>
 
       <ApprovalDrawer
         open={approvalDrawerOpen} onOpenChange={setApprovalDrawerOpen}
         scheduleKey={storageKey(department.slug, s.state.month, s.state.yearBE)}
         status={approvalStatus} loading={approvalLoading}
         onSubmit={onSubmitApproval} submitting={approvalSubmitting} submitError={approvalSubmitError}
-        reviewContent={<ScheduleReview issues={reviewIssues} onRecheck={recheckReview} onBackToRoster={()=>{ setApprovalDrawerOpen(false); setActiveTab("schedule"); }} />}
+        reviewContent={<ScheduleReview issues={reviewIssues} onRecheck={recheckReview} onBackToRoster={()=>{ setApprovalDrawerOpen(false); setPage("schedule"); setScheduleSubTab("schedule"); }} />}
         reviewBlockingCount={reviewIssues.filter(x=>x.level === "blocking").length}
       />
-    </Tabs.Root>
+
+      <AddEditShiftDialog
+        open={addShiftOpen} onOpenChange={setAddShiftOpen}
+        employees={s.state.employees} shiftCodes={shiftCodeList} daysInMonth={daysInMonth(s.state.yearBE, s.state.month)}
+        onSubmit={(empId, day, code)=>onChangeDay(empId, day, code)}
+      />
+    </AppErrorBoundary>
   );
 }
 
@@ -891,10 +950,18 @@ export default function App(){
     );
   }
 
-  return <AppErrorBoundary>
-    <ScheduleApp key={department.slug} department={department} onSwitchDepartment={()=>{
-    setDepartment(null);
-    localStorage.removeItem(SELECTED_DEPT_KEY);
-  }} />
-  </AppErrorBoundary>;
+  return (
+    <ScheduleApp
+      key={department.slug}
+      department={department}
+      onSwitchDepartment={()=>{
+        setDepartment(null);
+        localStorage.removeItem(SELECTED_DEPT_KEY);
+      }}
+      onSelectDepartment={(d)=>{
+        setDepartment(d);
+        localStorage.setItem(SELECTED_DEPT_KEY, JSON.stringify(d));
+      }}
+    />
+  );
 }

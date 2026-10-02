@@ -61,6 +61,38 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+
+  /* shadcn/ui semantic-token bridge — every component added via the
+     shadcn CLI (sidebar, dialog, dropdown-menu, etc.) reads these
+     `--color-*` names. Mapping them onto the existing design tokens
+     instead of shadcn's defaults means new components match the
+     current look with zero manual recoloring. */
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #ffffff;
+  --color-muted: var(--color-canvas);
+  --color-muted-foreground: var(--color-ink-soft);
+  --color-accent: var(--color-primary-soft);
+  --color-accent-foreground: var(--color-primary);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-primary);
+  --color-sidebar: var(--color-surface);
+  --color-sidebar-foreground: var(--color-ink);
+  --color-sidebar-primary: var(--color-primary);
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: var(--color-primary-soft);
+  --color-sidebar-accent-foreground: var(--color-primary);
+  --color-sidebar-border: var(--color-line);
+  --color-sidebar-ring: var(--color-primary);
+  --radius: 0.625rem;
 }
 
 /* Dark palette — same structure, inverted. `.dark` sits on <html>, and
@@ -91,6 +123,22 @@
   --color-warning-soft: #2a1c0f;
 
   color-scheme: dark;
+
+  --sidebar: hsl(240 5.9% 10%);
+
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+
+  --sidebar-border: hsl(240 3.7% 15.9%);
+
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 body {
@@ -236,7 +284,6 @@ td.day-cell.prev-day .prevval{
 }
 td.day-cell.prev-day .prevval.empty{opacity:.35; font-weight:400;}
 
-
 .roster-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;border:1px solid var(--color-line);border-bottom:0;border-radius:10px 10px 0 0;background:var(--color-surface);}
 .roster-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font:12px var(--font-sans);color:var(--color-ink-soft);}
 .roster-legend>span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
@@ -282,7 +329,6 @@ td.day-cell.drop-target{box-shadow:inset 0 0 0 2px var(--color-primary);backgrou
   table{width:100%;}
 }
 
-
 /* Dashboard: keep the information layer airy while the roster remains dense. */
 .dashboard-number { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
@@ -303,7 +349,6 @@ td.day-cell:focus-within .cell-detail-btn,
 @media(max-width:900px){
   .cell-detail-btn{opacity:.75; transform:none; width:17px; height:17px;}
 }
-
 
 /* Phase 5 — temporary focus state when Manager Action Center jumps to a roster cell. */
 .action-focus-pulse {
@@ -330,3 +375,25 @@ td.day-cell:focus-within .cell-detail-btn,
 .cell-select-btn{position:absolute;left:3px;top:3px;z-index:5;width:16px;height:16px;border:1px solid var(--color-line);border-radius:4px;background:var(--color-surface);color:var(--color-primary);font:700 11px/14px var(--font-sans);padding:0;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;}.cell-select-btn.selected{background:var(--color-primary);border-color:var(--color-primary);color:white;}.day-cell.bulk-selected{box-shadow:inset 0 0 0 2px var(--color-primary), inset 0 0 0 999px color-mix(in srgb,var(--color-primary) 5%,transparent);}
 .dark .bulk-undo-btn{background:#422006;color:#fcd34d;border-color:#92400e;}
 @media(max-width:900px){.bulk-actions{margin-left:0;width:100%;}.bulk-preview-actions{width:100%;margin-left:0;justify-content:flex-end;}.bulk-toolbar{padding:8px;}.bulk-preview{padding:9px 8px;}.bulk-preview-list{min-width:100%;}}
+
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
