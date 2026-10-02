@@ -103,6 +103,25 @@ export default function DashboardOverview({ state, holidays, approvalStatus, onO
   const topShifts = Object.entries(shiftCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxShift = Math.max(1, ...topShifts.map(([, count]) => count));
 
+  // "Upcoming shifts" — next few days in the open month, starting from
+  // today if we're viewing the current month, otherwise from day 1.
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear() + 543 === state.yearBE && now.getMonth() + 1 === state.month;
+  const startDay = isCurrentMonth ? now.getDate() : 1;
+  const upcomingDays = [];
+  for (let d = startDay; d <= nd && upcomingDays.length < 5; d++) {
+    const onShift = [];
+    const onLeave = [];
+    employees.forEach((emp) => {
+      const raw = (emp.days?.[d] || "").trim().toUpperCase();
+      if (!raw) return;
+      const { base } = parseCellValue(raw);
+      if (base === "LA") onLeave.push(emp.name || emp.empCode);
+      else if (base !== "O") onShift.push({ name: emp.name || emp.empCode, code: raw });
+    });
+    upcomingDays.push({ day: d, onShift, onLeave, weekend: isWeekend(state.yearBE, state.month, d), holiday: isHoliday(state.yearBE, state.month, d, holidays) });
+  }
+
   return (
     <main className="mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-6 lg:px-8 lg:py-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -238,6 +257,40 @@ export default function DashboardOverview({ state, holidays, approvalStatus, onO
           </div>
         </Card>
       </div>
+
+      <Card title="กะที่จะถึงเร็ว ๆ นี้" className="mt-5" action={<button type="button" onClick={onOpenRoster} className="text-[16px] font-medium text-primary hover:underline">ดูตารางเต็ม →</button>}>
+        {upcomingDays.length ? (
+          <div className="flex flex-col divide-y divide-line/70">
+            {upcomingDays.map((d) => (
+              <div key={d.day} className="flex items-start gap-4 py-3 first:pt-0 last:pb-0">
+                <div className="flex w-14 shrink-0 flex-col items-center rounded-lg bg-canvas py-1.5">
+                  <span className="text-[15px] text-ink-faint">{THAI_MONTHS[state.month - 1].slice(0, 3)}</span>
+                  <span className="text-[22px] font-semibold leading-none text-ink">{d.day}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {d.holiday && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[14px] font-medium text-danger">วันหยุดนักขัตฤกษ์</span>}
+                    {!d.holiday && d.weekend && <span className="rounded-full bg-canvas px-2 py-0.5 text-[14px] font-medium text-ink-faint">วันหยุดสุดสัปดาห์</span>}
+                    <span className="text-[16px] text-ink-faint">{d.onShift.length} คนเข้ากะ{d.onLeave.length ? ` · ${d.onLeave.length} คนลา` : ""}</span>
+                  </div>
+                  {d.onShift.length ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {d.onShift.slice(0, 6).map((e, i) => (
+                        <span key={i} className="rounded-md bg-primary-soft px-2 py-0.5 text-[15px] font-medium text-primary">{e.name} · {e.code}</span>
+                      ))}
+                      {d.onShift.length > 6 && <span className="rounded-md bg-canvas px-2 py-0.5 text-[15px] text-ink-faint">+{d.onShift.length - 6} คน</span>}
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 text-[16px] text-ink-faint">ยังไม่มีการจัดกะในวันนี้</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-6 text-center text-[17px] text-ink-faint">ไม่มีวันที่เหลือในเดือนนี้ให้แสดง</div>
+        )}
+      </Card>
 
       <div className="mt-4 rounded-xl border border-line bg-white dark:bg-surface px-5 py-4 text-[17px] leading-5 text-ink-soft shadow-sm shadow-black/[0.02]">
         <span className="font-medium text-ink">UX note:</span> หน้านี้เน้นให้ผู้จัดการเห็น “สิ่งที่ต้องทำ” ก่อนรายละเอียด เพื่อไม่ต้องไล่ตรวจทั้งตารางทุกครั้ง
